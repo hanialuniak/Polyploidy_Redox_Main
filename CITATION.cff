@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: "Polyploidy and redox state: an analysis of public datasets"
+message: "If you use this code, please cite it as below."
+type: software
+authors:
+  - family-names: Luniak
+    given-names: Hanna
+    affiliation: "Babraham Institute, University of Cambridge"
+repository-code: "https://github.com/USERNAME/polyploidy-redox"
+license: MIT
+date-released: 2026-11-23
+keywords:
+  - polyploidy
+  - endoreplication
+  - redox
+  - hydrogen peroxide
+  - Drosophila
+  - single-cell

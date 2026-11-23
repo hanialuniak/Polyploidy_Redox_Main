@@ -1,0 +1,743 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Route A: ploidy, redox and Geminin in cell lines</title><style>
+@page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9.6pt; color: #1d1d1d; line-height: 1.42; }
+h1 { color: #1f3b5c; font-size: 22pt; line-height: 1.15; margin: 0 0 6px 0; }
+.sub { color: #666; font-size: 11pt; margin-top: 0; }
+h2 { color: #1f3b5c; font-size: 15pt; margin: 22px 0 8px 0; page-break-after: avoid; }
+h3 { color: #2a7a73; font-size: 11.5pt; margin: 16px 0 6px 0; page-break-after: avoid; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0 10px 0; font-size: 8.6pt; page-break-inside: auto; }
+tr { page-break-inside: avoid; }
+th { background: #1f3b5c; color: white; text-align: left; padding: 6px 7px; font-weight: bold; }
+td { padding: 6px 7px; border-bottom: 1px solid #d5dbe3; vertical-align: top; }
+tbody tr:nth-child(even) td { background: #eef1f6; }
+table.glance thead { display: none; }
+table.glance td:first-child { width: 22%; background: #eef1f6; }
+table.glance { border-top: 2px solid #1f3b5c; }
+table.summary td:first-child { width: 62%; }
+pre { font-family: 'DejaVu Sans Mono', monospace; font-size: 6.6pt; line-height: 1.32; background: #f7f8fa;
+      border-left: 3px solid #c9d1dc; padding: 7px 9px; white-space: pre-wrap; margin: 4px 0 8px 0; }
+.cellname { font-weight: bold; margin: 12px 0 2px 0; page-break-after: avoid; }
+.ok { background: #eef7ee; border: 1px solid #9fcb9f; padding: 8px 10px; margin: 6px 0 12px 0; font-size: 8.8pt; page-break-inside: avoid; }
+.warn { background: #fdf6e3; border: 1px solid #e3c26a; padding: 8px 10px; margin: 8px 0 12px 0; font-size: 8.8pt; page-break-inside: avoid; }
+.small { font-size: 8.4pt; color: #555; }
+ol, ul { padding-left: 20px; } li { margin-bottom: 4px; }
+</style></head><body>
+<h1>Route A: ploidy, redox and Geminin in cell lines: an exploratory step-by-step guide</h1>
+<p class="sub">Screening which redox programmes and genes differ with ploidy in DepMap cancer cell lines, in RNA and
+protein, and where Geminin fits. No hypotheses are set in advance. For Google Colab; written for a beginner.</p>
+
+<h2>1. What this notebook explores</h2>
+<p>Each cancer cell line in DepMap has a <b>ploidy</b> estimated from its DNA sequencing (the average number of copies of
+its genome), plus gene expression, CRISPR knockout effects and, for about 375 lines, protein levels. The notebook compares
+lines from the same tissue and asks, without a prediction, what changes with ploidy. Seven screens build on each other:</p>
+<table class=""><thead><tr><th>Question</th><th>How it is explored</th><th>Cell</th></tr></thead><tbody><tr><td><b>Screen 1. Which redox programmes go with ploidy?</b></td><td>Correlate each programme's score with ploidy within each tissue, after removing proliferation; p-value by shuffling ploidy within tissue</td><td>6</td></tr><tr><td><b>Screen 2. Is a signal stronger than random genes?</b></td><td>Repeat Screen 1 with 500 random gene sets of the same size and expression level</td><td>7</td></tr><tr><td><b>Screen 3. Is it specific to redox?</b></td><td>Test whether the redox programme still goes with ploidy after subtracting each of four non-redox stress programmes</td><td>8</td></tr><tr><td><b>Screen 4. Does it hold for genome doubling?</b></td><td>Repeat Screens 1-3 with doubled / not doubled instead of ploidy as a number</td><td>9</td></tr><tr><td><b>Screen 5. Does it hold for proteins?</b></td><td>Repeat Screens 1-3 on CCLE mass-spectrometry protein levels</td><td>10</td></tr><tr><td><b>Screen 6. Which individual genes drive it?</b></td><td>Every redox and control gene tested on its own, RNA and protein</td><td>11</td></tr><tr><td><b>Screen 7. Where does Geminin fit?</b></td><td>GMNN and CDT1 expression, their balance and their knockout effects, against ploidy and against redox</td><td>12</td></tr></tbody></table>
+
+<h3>Starting point: Geminin</h3>
+<p>The one thing known from the fly experiments is that <b>Geminin modulates endoreplication</b>. Geminin (human gene
+<b>GMNN</b>) blocks <b>CDT1</b>, a protein that licenses DNA for replication, so that the genome is copied only once per
+cycle. Losing that brake lets cells copy their DNA again without dividing. Screen 7 asks whether, in human cell lines:</p>
+<ul>
+<li>GMNN or CDT1 levels, or the balance between them, differ with ploidy;</li>
+<li>lines with higher ploidy depend more or less on GMNN (CRISPR knockout effect);</li>
+<li>GMNN goes with redox programmes, and whether that link remains once ploidy is taken into account.</li>
+</ul>
+<div class="warn"><b>A fly link may not show here.</b> Cancer cells become polyploid by several routes (failed cell division, skipped mitosis, re-replication), not mainly through endocycles like fly cells. GMNN is also cell-cycle regulated, so its level follows how fast lines divide. A null result in cell lines therefore does not argue against the fly finding.</div>
+
+<h3>What stays the same throughout</h3>
+<p>These are analysis choices, not predictions. They apply to every screen.</p>
+<table class=""><thead><tr><th>Item</th><th>Setting</th></tr></thead><tbody><tr><td><b>Comparisons</b></td><td>Always within tissue of origin, adjusted for proliferation (22 cell-cycle genes). Follow-up runs can drop the proliferation adjustment or add TP53 status (section 13)</td></tr><tr><td><b>Lines left out</b></td><td>Lines with KEAP1, CUL3 or NFE2L2 mutations, which switch redox genes on regardless of ploidy; tissues with fewer than 10 lines</td></tr><tr><td><b>Redox programmes (7)</b></td><td>NRF2 targets, glutathione, thioredoxin/peroxiredoxin, antioxidant enzymes, ROS sources, ferroptosis, mitochondrial respiration</td></tr><tr><td><b>Stress controls (4)</b></td><td>Unfolded protein response, heat shock, DNA damage, immediate-early genes</td></tr><tr><td><b>Labelling thresholds</b></td><td>False discovery rate below 0.05; beats random gene sets (p below 0.05); beats every stress control (p below 0.05)</td></tr><tr><td><b>Genes of interest</b></td><td>GMNN and CDT1 (add others in Cell 1, for example other licensing genes)</td></tr></tbody></table>
+
+<h3>The data</h3>
+<p>All seven files sit in your Google Drive folder <b>Colab Notebooks/route_a_data</b>. The notebook reads them from
+there; it does not download anything.</p>
+<table class=""><thead><tr><th>File</th><th>What it is</th><th>Used in</th><th>Source</th></tr></thead><tbody><tr><td><b>OmicsSignatures.csv</b> (DepMap 24Q4)</td><td>Ploidy and whole-genome doubling per line, estimated with PureCN</td><td>All screens</td><td>DepMap portal, release 24Q4</td></tr><tr><td><b>OmicsExpressionProtein-CodingGenesTPMLogp1.csv</b></td><td>Gene expression, log TPM, about 19,000 genes</td><td>Screens 1-4, 6, 7</td><td>DepMap portal, release 24Q4</td></tr><tr><td><b>CRISPRGeneEffect.csv</b></td><td>Effect of knocking out each gene on growth; more negative = line depends more on it</td><td>Screen 7</td><td>DepMap portal, release 24Q4</td></tr><tr><td><b>Model.csv</b>; mutation matrices</td><td>Tissue of origin, names; mutations</td><td>Adjustment; exclusions</td><td>DepMap portal, release 24Q4 (3 files)</td></tr><tr><td><b>protein_quant_current_normalized.csv.gz</b> (Gygi lab)</td><td>Mass-spectrometry protein levels, 375 lines</td><td>Screens 5, 6</td><td>Gygi lab CCLE page, TSV format</td></tr></tbody></table>
+<div class="warn"><b>These are cancer cell lines, not neurons.</b> Findings are leads for brain tissue (Routes B and C) and for the fly work, not conclusions. Correlations here do not show which causes which.</div>
+
+<h2>2. Before you start: note your settings (5 minutes)</h2>
+<p>Exploratory does not need hypotheses, but it does need the analysis fixed before you see results, so that settings are
+not changed until something looks interesting.</p>
+<ol>
+<li><b>Record the date and the Cell 1 settings</b> in your lab notebook or an email to your supervisor before running Cell 6.</li>
+<li><b>Report every screen</b>, including those that find nothing. With 7 programmes, about 170 genes and several Geminin measures, some results will pass by chance.</li>
+<li><b>If you change a setting after seeing results</b>, keep the first run and report both.</li>
+<li><b>Treat any finding as a lead</b> to test in a new dataset (brain Multiome, flies), not as a result in itself.</li>
+</ol>
+<div class="warn"><b>Why the checks exist.</b> In a simulated dataset where ploidy had <i>no</i> effect on redox, but tissue and proliferation affected both, the raw correlation between NRF2 targets and ploidy was 0.56; within tissue and adjusted for proliferation it fell to 0.07. Keeping the KEAP1-mutant lines in produced a false link of 0.20 (false discovery rate 0.002). In the same simulation, GMNN correlated with three redox programmes (up to 0.11, false discovery rate 0.007) only because both follow proliferation; comparing GMNN with genes that follow proliferation equally closely removed every one.</div>
+
+<h2>3. Setup</h2>
+<ol>
+<li>Go to <b>colab.research.google.com</b>, choose <b>File &rarr; Upload notebook</b> and select <i>RouteA_ploidy_redox.ipynb</i>. Save a copy to Google Drive.</li>
+<li>Check that DATA_DIR in Cell 1 reads <i>/content/drive/MyDrive/Colab Notebooks/route_a_data</i>. If your folder is elsewhere, change it there: <i>MyDrive</i> is the top of your Drive.</li>
+<li>Run <b>Cell 1</b> (the play button on its left). Colab asks to connect to Google Drive: choose your account and click <b>Allow</b>.</li>
+<li>Add any extra genes of interest (for example <i>GMNN, CDT1, CDC6, MCM2</i>) to GENES_OF_INTEREST.</li>
+</ol>
+<p>You can run one cell at a time, as this guide does, or everything with <b>Runtime &rarr; Run all</b>.</p>
+<p class="cellname">Cell 1 - Setup, settings and connect Google Drive</p><pre>#@title Cell 1 - Setup, settings and connect Google Drive
+import io, os, re, warnings
+import numpy as np
+import pandas as pd
+import requests
+import matplotlib.pyplot as plt
+warnings.filterwarnings(&quot;ignore&quot;)
+try:
+    from IPython.display import display
+except ImportError:
+    display = print
+
+# Your data folder in Google Drive (where you put the 7 downloaded files)
+DATA_DIR = &quot;/content/drive/MyDrive/Colab Notebooks/route_a_data&quot;  #@param {type:&quot;string&quot;}
+DATA_DIR = os.environ.get(&quot;ROUTE_A_DATA&quot;, DATA_DIR)
+if DATA_DIR.startswith(&quot;/content/drive&quot;):
+    from google.colab import drive
+    drive.mount(&quot;/content/drive&quot;)
+
+
+class StopHere(Exception):
+    &quot;&quot;&quot;Stops the notebook with a plain-language message.&quot;&quot;&quot;
+
+
+if not os.path.isdir(DATA_DIR):
+    raise StopHere(f&quot;Folder not found: {DATA_DIR}. Check the folder name in Google Drive and fix DATA_DIR above.&quot;)
+
+# Settings (Colab shows these as boxes on the right)
+LINEAGE = &quot;All lineages&quot;  #@param [&quot;All lineages&quot;, &quot;CNS/Brain only&quot;]
+USE_PROTEINS = True  #@param {type:&quot;boolean&quot;}
+EXCLUDE_NRF2_MUTANTS = True  #@param {type:&quot;boolean&quot;}
+MY_GENES = &quot;&quot;  #@param {type:&quot;string&quot;}
+N_RANDOM_SETS = 500  #@param {type:&quot;integer&quot;}
+N_PERMUTATIONS = 2000  #@param {type:&quot;integer&quot;}
+MIN_LINES_PER_TISSUE = 10  #@param {type:&quot;integer&quot;}
+DEPMAP_RELEASE = &quot;DepMap Public 24Q4&quot;  #@param {type:&quot;string&quot;}
+SEED = 1  #@param {type:&quot;integer&quot;}
+GENES_OF_INTEREST = &quot;GMNN, CDT1&quot;  #@param {type:&quot;string&quot;}
+USE_CRISPR = True  #@param {type:&quot;boolean&quot;}
+#@markdown **TP53**: p53 status affects both ploidy tolerance and some redox genes.
+TP53_MODE = &quot;All lines&quot;  #@param [&quot;All lines&quot;, &quot;TP53-normal lines only&quot;, &quot;Adjust for TP53 status&quot;]
+#@markdown **Proliferation adjustment**: untick to see how much it changes the results.
+ADJUST_PROLIFERATION = True  #@param {type:&quot;boolean&quot;}
+
+# Reporting thresholds (conventions for labelling findings, not hypotheses)
+FDR_MAX = 0.05            # false discovery rate
+RANDOM_P_MAX = 0.05       # must beat expression-matched random gene sets
+CONTROL_P_MAX = 0.05      # must beat every non-redox stress programme
+
+rng = np.random.default_rng(SEED)
+GOI = [g.strip().upper() for g in re.split(r&quot;[,\s;]+&quot;, GENES_OF_INTEREST) if g.strip()]
+print(&quot;Genes of interest:&quot;, GOI, &quot;| TP53:&quot;, TP53_MODE, &quot;| proliferation adjustment:&quot;, ADJUST_PROLIFERATION)
+print(&quot;Data folder:&quot;, DATA_DIR)</pre>
+<div class="ok"><b>Tested</b> on mock data in a local folder. The Drive connection itself runs only in Colab, so I could not test it here.</div>
+<p><b>What you should see:</b> a line ending <i>data folder: /content/drive/MyDrive/Colab Notebooks/route_a_data</i>. If it says <i>Folder not found</i>, the folder name or location differs: fix DATA_DIR.</p>
+
+<h2>4. Step 1: check and match the data (Cells 2-3, 2-3 minutes)</h2>
+<p>Cell 2 checks that all seven files are in your Drive folder and prints each one with its size. Cell 3 lines the files
+up by cell line, removes NRF2-pathway mutants and keeps tissues with at least 10 lines. Reading the expression file from
+Drive takes a minute or two.</p>
+<p class="cellname">Cell 2 - Check the data files in your Drive folder</p><pre>#@title Cell 2 - Check the data files in your Drive folder
+NEEDED = {
+    &quot;models&quot;: [&quot;Model.csv&quot;],
+    &quot;signatures&quot;: [&quot;OmicsSignatures.csv&quot;],
+    &quot;expression&quot;: [&quot;OmicsExpressionProteinCodingGenesTPMLogp1.csv&quot;],
+    &quot;damaging&quot;: [&quot;OmicsSomaticMutationsMatrixDamaging.csv&quot;],
+    &quot;hotspot&quot;: [&quot;OmicsSomaticMutationsMatrixHotspot.csv&quot;],
+}
+if USE_CRISPR:
+    NEEDED[&quot;crispr&quot;] = [&quot;CRISPRGeneEffect.csv&quot;]
+if USE_PROTEINS:
+    NEEDED[&quot;proteins&quot;] = [&quot;protein_quant_current_normalized.csv.gz&quot;, &quot;protein_quant_current_normalized.csv&quot;]
+
+present = sorted(os.listdir(DATA_DIR))
+paths, missing = {}, []
+for key, names in NEEDED.items():
+    found = next((n for n in names if os.path.exists(os.path.join(DATA_DIR, n))), None)
+    if found:
+        paths[key] = os.path.join(DATA_DIR, found)
+        print(f&quot;   found   {found}  ({os.path.getsize(paths[key]) / 1e6:.0f} MB)&quot;)
+    else:
+        stem = names[0].split(&quot;.&quot;)[0]
+        similar = [p for p in present if p.startswith(stem)]
+        missing.append(names[0])
+        print(f&quot;   MISSING {names[0]}&quot; + (f&quot;  (similar name in folder: {similar[0]} - rename it)&quot; if similar else &quot;&quot;))
+if missing:
+    raise StopHere(f&quot;{len(missing)} file(s) missing from {DATA_DIR}. Add or rename them, then run this cell again. &quot;
+                   &quot;(Untick USE_CRISPR or USE_PROTEINS in Cell 1 to run without those files.)&quot;)
+print(&quot;All files ready.&quot;)</pre>
+<div class="ok"><b>Tested</b> on mock files, including a missing file and one renamed by the browser to <i>Model (1).csv</i>; Cell 2 named both and stopped.</div>
+<p><b>What you should see:</b> seven lines starting <i>found</i>, then <i>All files ready.</i></p>
+<table class=""><thead><tr><th>What you see</th><th>What to do</th></tr></thead><tbody><tr><td><b>MISSING ... (similar name in folder: ... - rename it)</b></td><td>In Google Drive, right-click that file, choose Rename and use the exact name shown after MISSING</td></tr><tr><td><b>MISSING CRISPRGeneEffect.csv</b> or the protein file</td><td>Add the file, or untick USE_CRISPR or USE_PROTEINS in Cell 1 to run without it</td></tr><tr><td><b>Protein file found as .csv rather than .csv.gz</b></td><td>Fine: your computer unzipped it; both work</td></tr></tbody></table>
+<p class="cellname">Cell 3 - Load and match the data</p><pre>#@title Cell 3 - Load and match the data
+def read_model_matrix(path):
+    &quot;&quot;&quot;Read a DepMap cell-line x gene file (works with old and new layouts).&quot;&quot;&quot;
+    table = pd.read_csv(path, low_memory=False)
+    gene_columns = [c for c in table.columns if re.search(r&quot;\(\d+\)\s*$&quot;, str(c))]
+    if &quot;ModelID&quot; in table.columns:
+        for flag in (&quot;IsDefaultEntryForModel&quot;, &quot;is_default_entry&quot;):
+            if flag in table.columns:
+                table = table[table[flag].astype(str).str.lower().isin([&quot;yes&quot;, &quot;true&quot;, &quot;1&quot;])]
+        table = table.drop_duplicates(&quot;ModelID&quot;).set_index(&quot;ModelID&quot;)
+    else:
+        table = table.set_index(table.columns[0])
+    if not gene_columns:
+        gene_columns = [c for c in table.columns if pd.api.types.is_numeric_dtype(table[c])]
+    table = table[gene_columns].astype(&quot;float32&quot;)
+    table.columns = [re.sub(r&quot;\s*\(\d+\)\s*$&quot;, &quot;&quot;, str(c)) for c in table.columns]
+    table = table.loc[:, ~table.columns.duplicated()]
+    table.index = table.index.astype(str)
+    return table
+
+
+def find_column(table, *names):
+    lower = {str(c).lower(): c for c in table.columns}
+    for name in names:
+        if name.lower() in lower:
+            return lower[name.lower()]
+    raise StopHere(f&quot;Expected a column like {names[0]}; found {list(table.columns)[:12]}&quot;)
+
+
+models = pd.read_csv(paths[&quot;models&quot;], low_memory=False)
+models = models.set_index(find_column(models, &quot;ModelID&quot;))
+models.index = models.index.astype(str)
+lineage_col = find_column(models, &quot;OncotreeLineage&quot;, &quot;Lineage&quot;)
+ccle_col = find_column(models, &quot;CCLEName&quot;, &quot;CCLE_Name&quot;)
+
+signatures = pd.read_csv(paths[&quot;signatures&quot;])
+signatures = signatures.set_index(&quot;ModelID&quot; if &quot;ModelID&quot; in signatures.columns else signatures.columns[0])
+signatures.index = signatures.index.astype(str)
+
+print(&quot;Reading expression (about 1 minute) ...&quot;)
+expression = read_model_matrix(paths[&quot;expression&quot;])
+damaging = read_model_matrix(paths[&quot;damaging&quot;])
+hotspot = read_model_matrix(paths[&quot;hotspot&quot;])
+
+
+def mutated(matrix, genes):
+    present = [g for g in genes if g in matrix.columns]
+    return (matrix[present].fillna(0) &gt; 0).any(axis=1) if present else pd.Series(False, index=matrix.index)
+
+
+nrf2_mutant = pd.concat([mutated(damaging, [&quot;KEAP1&quot;, &quot;CUL3&quot;]), mutated(hotspot, [&quot;NFE2L2&quot;, &quot;KEAP1&quot;])], axis=1).any(axis=1)
+lines = pd.DataFrame({
+    &quot;ploidy&quot;: pd.to_numeric(signatures[find_column(signatures, &quot;Ploidy&quot;)], errors=&quot;coerce&quot;),
+    &quot;wgd&quot;: pd.to_numeric(signatures[find_column(signatures, &quot;WGD&quot;)], errors=&quot;coerce&quot;),
+}).dropna(subset=[&quot;ploidy&quot;])
+lines = lines[lines.index.isin(expression.index) &amp; lines.index.isin(models.index)]
+lines[&quot;tissue&quot;] = models.loc[lines.index, lineage_col].astype(str)
+lines[&quot;nrf2_mutant&quot;] = nrf2_mutant.reindex(lines.index).fillna(False).astype(bool)
+tp53_mutant = pd.concat([mutated(damaging, [&quot;TP53&quot;]), mutated(hotspot, [&quot;TP53&quot;])], axis=1).any(axis=1)
+lines[&quot;tp53_mutant&quot;] = tp53_mutant.reindex(lines.index).fillna(False).astype(bool)
+print(f&quot;Cell lines with ploidy and expression: {len(lines)}&quot;)
+if EXCLUDE_NRF2_MUTANTS:
+    print(f&quot;Leaving out {int(lines.nrf2_mutant.sum())} lines with KEAP1, CUL3 or NFE2L2 mutations&quot;)
+    lines = lines[~lines.nrf2_mutant]
+print(f&quot;TP53-mutant lines: {int(lines.tp53_mutant.sum())} of {len(lines)}&quot;)
+if TP53_MODE == &quot;TP53-normal lines only&quot;:
+    print(f&quot;Keeping only the {int((~lines.tp53_mutant).sum())} TP53-normal lines&quot;)
+    lines = lines[~lines.tp53_mutant]
+if LINEAGE == &quot;CNS/Brain only&quot;:
+    lines = lines[lines.tissue == &quot;CNS/Brain&quot;]
+sizes = lines.tissue.value_counts()
+lines = lines[lines.tissue.isin(sizes[sizes &gt;= MIN_LINES_PER_TISSUE].index)]
+print(f&quot;Cell lines analysed: {len(lines)} from {lines.tissue.nunique()} tissues&quot;)
+if len(lines) &lt; 25:
+    raise StopHere(f&quot;Only {len(lines)} cell lines remain. Choose &#x27;All lineages&#x27; in Cell 1 and rerun.&quot;)
+
+proteins = None
+if USE_PROTEINS:
+    raw = pd.read_csv(paths[&quot;proteins&quot;], low_memory=False)
+    gene_col = find_column(raw, &quot;Gene_Symbol&quot;, &quot;GeneSymbol&quot;)
+    sample_cols = [c for c in raw.columns if re.match(r&quot;^.+_TenPx\d+$&quot;, str(c))]
+    if not sample_cols:
+        print(&quot;WARNING: protein file layout not recognised; proteins will be skipped.&quot;)
+    by_gene = raw[[gene_col] + sample_cols].dropna(subset=[gene_col]).groupby(gene_col).mean()
+    by_gene.columns = [re.sub(r&quot;_TenPx\d+$&quot;, &quot;&quot;, c) for c in by_gene.columns]
+    by_gene = by_gene.T.groupby(level=0).mean()
+    name_to_id = pd.Series(models.index, index=models[ccle_col].astype(str)).groupby(level=0).first()
+    by_gene.index = by_gene.index.map(name_to_id)
+    proteins = by_gene[by_gene.index.notna() &amp; by_gene.index.isin(lines.index)]
+    print(f&quot;Cell lines that also have protein data: {len(proteins)}&quot;)
+
+crispr = None
+if USE_CRISPR:
+    crispr = read_model_matrix(paths[&quot;crispr&quot;])
+    crispr = crispr[crispr.index.isin(lines.index)]
+    print(f&quot;Cell lines that also have CRISPR knockout data: {len(crispr)}&quot;)</pre>
+<div class="ok"><b>Tested</b> on mock files in both the 24Q4 layout and the newer layout (extra columns and duplicate rows per cell line).</div>
+<p><b>What you should see:</b> lines such as <i>Leaving out 58 lines with KEAP1, CUL3 or NFE2L2 mutations</i>, <i>Cell lines analysed: 1122 from 30 tissues</i>, <i>... protein data: 389</i> and <i>... CRISPR knockout data: 1122</i> (simulated numbers; yours will differ).</p>
+
+<h2>5. Step 2: build the scores (Cells 4-5)</h2>
+<p>Cell 4 holds the gene lists. Cell 5 holds the tools every screen uses; it prints only <i>Tools ready</i>. Two ideas matter:</p>
+<ul>
+<li><b>Programme score.</b> Each gene becomes a z-score (how far a line sits from the average line, in standard deviations). A programme's score is the average z-score of its genes. Genes measured in fewer than 80% of lines are left out.</li>
+<li><b>Adjustment.</b> Before any correlation, tissue of origin and proliferation are removed from both ploidy and the score. What is left is how a line differs from other lines of the same tissue that divide equally fast. The correlation of those leftovers is the <b>partial correlation</b> (partial rho), from -1 to 1.</li>
+</ul>
+<p class="cellname">Cell 4 - Gene programmes</p><pre>#@title Cell 4 - Gene programmes
+PROGRAMMES = {
+    &quot;REDOX: NRF2 targets&quot;: &quot;NQO1 HMOX1 GCLC GCLM TXNRD1 SRXN1 G6PD PGD ME1 TALDO1 TKT FTH1 FTL ABCC1 SLC7A11 GSR PRDX1 TXN SQSTM1 AKR1C1 OSGIN1&quot;,
+    &quot;REDOX: glutathione&quot;: &quot;GSS GSR GPX1 GPX3 GPX4 GPX7 GPX8 GSTM1 GSTM2 GSTM3 GSTP1 GSTO1 GSTA4 GSTK1 MGST1 MGST3 GLRX GLRX2 GLRX3 GCLC GCLM&quot;,
+    &quot;REDOX: thioredoxin/peroxiredoxin&quot;: &quot;TXN TXN2 TXNRD1 TXNRD2 TXNIP PRDX1 PRDX2 PRDX3 PRDX4 PRDX5 PRDX6 SRXN1 NXN TXNDC5 TXNDC12&quot;,
+    &quot;REDOX: antioxidant enzymes&quot;: &quot;SOD1 SOD2 SOD3 CAT GPX1 GPX4 PRDX6 MSRA MSRB2 MSRB3 PARK7 NUDT1 OGG1 MUTYH APEX1&quot;,
+    &quot;REDOX: ROS sources&quot;: &quot;NOX4 NOX1 NOX5 CYBB CYBA NCF1 NCF2 NCF4 DUOX1 DUOX2 XDH AOX1 MAOA MAOB ALOX5 ALOX12 ALOX15&quot;,
+    &quot;REDOX: ferroptosis&quot;: &quot;ACSL4 LPCAT3 TFRC SLC7A11 GPX4 AIFM2 NCOA4 FTH1 FTL ALOX15 SLC3A2 VDAC2 VDAC3 PEBP1 DPP4&quot;,
+    &quot;REDOX: mitochondrial respiration&quot;: &quot;NDUFA1 NDUFA2 NDUFA4 NDUFB1 NDUFB5 NDUFS1 NDUFS2 NDUFV1 SDHA SDHB UQCRC1 UQCRC2 UQCRFS1 CYC1 COX4I1 COX5A COX5B COX6A1 COX7A2 ATP5F1A ATP5F1B ATP5MC1&quot;,
+    &quot;CONTROL: unfolded protein response&quot;: &quot;HSPA5 DDIT3 ATF4 XBP1 HERPUD1 DNAJB9 SEL1L EDEM1 CALR PDIA4 PDIA6 HSP90B1 ATF6 ERN1 EIF2AK3 SDF2L1 CRELD2 MANF&quot;,
+    &quot;CONTROL: heat shock&quot;: &quot;HSPA1A HSPA1B HSPB1 DNAJB1 HSPH1 HSPA8 HSP90AA1 HSP90AB1 HSPE1 HSPD1 BAG3 DNAJA1 HSF1 CRYAB&quot;,
+    &quot;CONTROL: DNA damage&quot;: &quot;CDKN1A GADD45A GADD45B MDM2 BBC3 BAX ATM ATR XPC DDB2 SESN1 RRM2B TP53I3 PPM1D&quot;,
+    &quot;CONTROL: immediate-early genes&quot;: &quot;FOS FOSB JUN JUNB EGR1 ARC NPAS4 NR4A1 DUSP1 IER2 ATF3 KLF4&quot;,
+}
+PROLIFERATION = (&quot;MKI67 TOP2A CCNB1 CDK1 BUB1 AURKA AURKB PLK1 CCNA2 MCM2 MCM3 MCM4 PCNA TYMS RRM2 &quot;
+                 &quot;CDC20 KIF11 CENPF NUSAP1 UBE2C BIRC5 TPX2&quot;).split()
+if MY_GENES.strip():
+    PROGRAMMES[&quot;REDOX: my genes&quot;] = &quot; &quot;.join(g.upper() for g in re.split(r&quot;[,\s;]+&quot;, MY_GENES) if g)
+PROGRAMMES = {n: [g for g in dict.fromkeys(v.split()) if g not in PROLIFERATION] for n, v in PROGRAMMES.items()}
+print(sum(n.startswith(&quot;REDOX&quot;) for n in PROGRAMMES), &quot;redox programmes,&quot;,
+      sum(n.startswith(&quot;CONTROL&quot;) for n in PROGRAMMES), &quot;stress controls&quot;)</pre>
+<p class="cellname">Cell 5 - Scoring and adjustment tools (no results yet)</p><pre>#@title Cell 5 - Scoring and adjustment tools (no results yet)
+def zscore(frame):
+    return (frame - frame.mean()) / frame.std(ddof=0).replace(0, np.nan)
+
+
+def programme_scores(data, programmes, min_genes=5):
+    &quot;&quot;&quot;Each programme&#x27;s score = average z-score of its genes measured in at least 80% of lines.&quot;&quot;&quot;
+    z = zscore(data[data.columns[data.notna().mean() &gt;= 0.8]])
+    scores, used = {}, {}
+    for name, genes in programmes.items():
+        found = [g for g in genes if g in z.columns]
+        if len(found) &gt;= min_genes:
+            scores[name], used[name] = z[found].mean(axis=1, skipna=True), found
+    return pd.DataFrame(scores), used
+
+
+def adjustment_basis(table):
+    &quot;&quot;&quot;What every test removes first: tissue of origin, and (per Cell 1) proliferation and TP53 status.&quot;&quot;&quot;
+    columns = [pd.get_dummies(table[&quot;tissue&quot;]).astype(float).to_numpy()]
+    if ADJUST_PROLIFERATION:
+        prolif = programme_scores(expression.loc[table.index], {&quot;p&quot;: PROLIFERATION})[0][&quot;p&quot;].rank().to_numpy()
+        columns.append(((prolif - prolif.mean()) / prolif.std())[:, None])
+    if TP53_MODE == &quot;Adjust for TP53 status&quot; and table[&quot;tp53_mutant&quot;].nunique() &gt; 1:
+        columns.append(table[&quot;tp53_mutant&quot;].astype(float).to_numpy()[:, None])
+    q, _ = np.linalg.qr(np.column_stack(columns))
+    return q
+
+
+def residual(values, basis):
+    values = np.asarray(values, dtype=float)
+    return values - basis @ (basis.T @ values)
+
+
+def corr(a, b):
+    a, b = a - a.mean(axis=0), b - b.mean(axis=0)
+    return (a * b).sum(axis=0) / np.sqrt((a**2).sum(axis=0) * (b**2).sum(axis=0))
+
+
+def shuffled_within_tissue(values, groups, n):
+    out = np.tile(np.asarray(values, dtype=float)[:, None], (1, n))
+    for g in np.unique(groups):
+        idx = np.flatnonzero(groups == g)
+        for j in range(n):
+            out[idx, j] = out[rng.permutation(idx), j]
+    return out
+
+
+def perm_p(observed, null):
+    return (1 + np.sum(np.abs(null) &gt;= abs(observed))) / (len(null) + 1)
+
+
+def fdr(p):
+    p = np.asarray(p, dtype=float)
+    order = np.argsort(p)
+    adjusted = p[order] * len(p) / np.arange(1, len(p) + 1)
+    out = np.empty_like(p)
+    out[order] = np.minimum(np.minimum.accumulate(adjusted[::-1])[::-1], 1)
+    return out
+print(&quot;Tools ready.&quot;)</pre>
+<div class="ok"><b>Tested:</b> ran correctly on mock data built in the same file formats.</div>
+<table class=""><thead><tr><th>partial rho</th><th>Rough size</th></tr></thead><tbody><tr><td>below 0.1</td><td>very small; can be significant only because there are many lines</td></tr><tr><td>0.1 to 0.3</td><td>small to moderate</td></tr><tr><td>0.3 to 0.5</td><td>moderate to strong</td></tr><tr><td>above 0.5</td><td>strong</td></tr></tbody></table>
+
+<h2>6. Screen 1: which programmes go with ploidy? (Cell 6)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Within the same tissue, and at equal proliferation, do lines with more genome copies have higher or lower scores, for any programme?</td></tr><tr><td><b>How it works</b></td><td>Partial rank correlation between ploidy and each programme score. Ploidy is shuffled within each tissue 2,000 times; the p-value is the share of shuffles giving a correlation as large. The false discovery rate (q) corrects for screening 7 redox programmes.</td></tr><tr><td><b>Passes when</b></td><td>q below 0.05, in either direction</td></tr><tr><td><b>What can fool it</b></td><td>Anything that varies with ploidy and redox together within a tissue: leftover proliferation, cell size, culture stress. Screens 2 and 3 exist for this.</td></tr></tbody></table>
+<p class="cellname">Cell 6 - Screen 1: does each programme go with ploidy, within tissue? (RNA)</p><pre>#@title Cell 6 - Screen 1: does each programme go with ploidy, within tissue? (RNA)
+def test_link(data, label, exposure=&quot;ploidy&quot;):
+    &quot;&quot;&quot;Partial rank correlation of programme score with ploidy, after removing tissue and proliferation.
+    The p-value comes from shuffling ploidy within each tissue N_PERMUTATIONS times.&quot;&quot;&quot;
+    table = lines[lines.index.isin(data.index)].dropna(subset=[exposure])
+    data = data.loc[table.index]
+    basis = adjustment_basis(table)
+    x = residual(table[exposure].rank().to_numpy(), basis)
+    xs = residual(shuffled_within_tissue(table[exposure].rank().to_numpy(), table[&quot;tissue&quot;].to_numpy(),
+                                         N_PERMUTATIONS), basis)
+    scores, used = programme_scores(data, PROGRAMMES)
+    rows = []
+    for name in scores.columns:
+        s = scores[name].to_numpy()
+        ok = ~np.isnan(s)
+        r = residual(np.where(ok, s, np.nanmean(s)), basis)
+        rho = float(corr(x[ok, None], r[ok, None])[0])
+        null = corr(xs[ok], np.repeat(r[ok, None], xs.shape[1], axis=1))
+        rows.append({&quot;data&quot;: label, &quot;programme&quot;: name, &quot;lines&quot;: int(ok.sum()), &quot;genes_used&quot;: len(used[name]),
+                     &quot;partial_rho&quot;: rho, &quot;p_perm&quot;: perm_p(rho, null)})
+    result = pd.DataFrame(rows)
+    redox = result.programme.str.startswith(&quot;REDOX&quot;)
+    result.loc[redox, &quot;q_fdr&quot;] = fdr(result.loc[redox, &quot;p_perm&quot;])
+    return {&quot;result&quot;: result, &quot;scores&quot;: scores, &quot;used&quot;: used, &quot;x&quot;: x, &quot;xs&quot;: xs, &quot;basis&quot;: basis,
+            &quot;table&quot;: table, &quot;data&quot;: data}
+
+
+rna = test_link(expression, &quot;RNA&quot;)
+display(rna[&quot;result&quot;].round(3))</pre>
+<div class="ok"><b>Tested</b> on two simulated datasets: one with a planted link for NRF2 targets and glutathione (partial rho 0.50 and 0.55; q = 0.001), and one with no link (largest partial rho 0.07, nothing below q = 0.05).</div>
+<p><b>What you should see:</b> one row per programme (11 rows) with <i>lines</i>, <i>genes_used</i>, <i>partial_rho</i>, <i>p_perm</i> and, for redox programmes, <i>q_fdr</i>. The smallest possible p_perm is 1/2001, printed as 0.0.</p>
+
+<h2>7. Screen 2: stronger than random genes? (Cell 7)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Would any set of genes with similar expression levels correlate with ploidy just as much?</td></tr><tr><td><b>How it works</b></td><td>For each redox programme, 500 random gene sets are drawn, the same size, each gene matched to a programme gene on average expression. Each goes through Screen 1. A real signal sits outside the range the random sets reach.</td></tr><tr><td><b>Passes when</b></td><td>p_vs_random below 0.05: fewer than 1 in 20 random sets do as well</td></tr><tr><td><b>What can fool it</b></td><td>A broad shift affecting most genes, such as a change in RNA composition with ploidy. If redox genes move but so does everything else, this screen fails.</td></tr></tbody></table>
+<p class="cellname">Cell 7 - Screen 2: is it stronger than random genes?</p><pre>#@title Cell 7 - Screen 2: is it stronger than random genes?
+def test_random(ctx):
+    &quot;&quot;&quot;For each redox programme, draw N_RANDOM_SETS random gene sets of the same size, each gene matched
+    on average expression, and see how strongly they correlate with ploidy.&quot;&quot;&quot;
+    data, used, x, basis, result = ctx[&quot;data&quot;], ctx[&quot;used&quot;], ctx[&quot;x&quot;], ctx[&quot;basis&quot;], ctx[&quot;result&quot;]
+    usable = data.columns[data.notna().mean() &gt;= 0.8]
+    level = data[usable].mean()
+    bins = pd.qcut(level.rank(method=&quot;first&quot;), 20, labels=False)
+    avoid = set().union(*used.values()) | set(PROLIFERATION)
+    pool = [g for g in usable if g not in avoid]
+    by_bin = {b: [g for g in level.index[bins == b] if g not in avoid] or pool for b in range(20)}
+    z = zscore(data[usable])
+    for name, genes in used.items():
+        if not name.startswith(&quot;REDOX&quot;):
+            continue
+        null = []
+        for _ in range(N_RANDOM_SETS):
+            draw = [rng.choice(by_bin[int(bins[g])]) for g in genes]
+            null.append(corr(x[:, None], residual(z[draw].mean(axis=1).fillna(0).to_numpy(), basis)[:, None])[0])
+        i = result.programme == name
+        rho = float(result.loc[i, &quot;partial_rho&quot;].iloc[0])
+        result.loc[i, &quot;random_low&quot;], result.loc[i, &quot;random_high&quot;] = np.quantile(null, [0.025, 0.975])
+        result.loc[i, &quot;p_vs_random&quot;] = perm_p(rho, np.array(null))
+
+
+test_random(rna)
+display(rna[&quot;result&quot;].loc[rna[&quot;result&quot;].programme.str.startswith(&quot;REDOX&quot;),
+                          [&quot;programme&quot;, &quot;partial_rho&quot;, &quot;random_low&quot;, &quot;random_high&quot;, &quot;p_vs_random&quot;]].round(3))</pre>
+<div class="ok"><b>Tested.</b> In the planted simulation, random sets reached -0.04 to 0.08 against 0.50 for NRF2 targets.</div>
+
+<h2>8. Screen 3: specific to redox? (Cell 8)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Is a signal about redox, or do all stress responses change with ploidy?</td></tr><tr><td><b>How it works</b></td><td>For each redox programme and each of the four stress controls, the control score is subtracted from the redox score and the difference goes through Screen 1. The largest of the four p-values is kept.</td></tr><tr><td><b>Passes when</b></td><td>p_vs_controls below 0.05 (all four differences pass, in the same direction as Screen 1)</td></tr><tr><td><b>What can fool it</b></td><td>Little. This is the strictest screen, and it can miss a real but modest redox-specific link if a control also moves somewhat.</td></tr></tbody></table>
+<p class="cellname">Cell 8 - Screen 3: is it specific to redox, or general stress?</p><pre>#@title Cell 8 - Screen 3: is it specific to redox, or general stress?
+def test_controls(ctx):
+    &quot;&quot;&quot;For each redox programme and each stress control, test whether (redox minus control) still goes with
+    ploidy. The worst (largest) p-value across the four controls is kept.&quot;&quot;&quot;
+    scores, x, xs, basis, result = ctx[&quot;scores&quot;], ctx[&quot;x&quot;], ctx[&quot;xs&quot;], ctx[&quot;basis&quot;], ctx[&quot;result&quot;]
+    controls = [c for c in scores.columns if c.startswith(&quot;CONTROL&quot;)]
+    for name in [n for n in scores.columns if n.startswith(&quot;REDOX&quot;)]:
+        i = result.programme == name
+        rho = float(result.loc[i, &quot;partial_rho&quot;].iloc[0])
+        worst_p, worst = 0.0, &quot;&quot;
+        for control in controls:
+            diff = zscore(scores[[name]])[name] - zscore(scores[[control]])[control]
+            r = residual(diff.fillna(0).to_numpy(), basis)
+            observed = float(corr(x[:, None], r[:, None])[0])
+            p = perm_p(observed, corr(xs, np.repeat(r[:, None], xs.shape[1], axis=1)))
+            if np.sign(observed) != np.sign(rho):
+                p = 1.0
+            if p &gt;= worst_p:
+                worst_p, worst = p, control.replace(&quot;CONTROL: &quot;, &quot;&quot;)
+        result.loc[i, &quot;p_vs_controls&quot;], result.loc[i, &quot;closest_control&quot;] = worst_p, worst
+
+
+test_controls(rna)
+display(rna[&quot;result&quot;][[&quot;programme&quot;, &quot;partial_rho&quot;]].round(3).join(
+    rna[&quot;result&quot;][[&quot;p_vs_controls&quot;, &quot;closest_control&quot;]]))</pre>
+<div class="ok"><b>Tested.</b> In a no-link simulation, Screen 3 rejected every programme (p_vs_controls 0.42 or more).</div>
+<p><b>What you should see:</b> <i>p_vs_controls</i> and <i>closest_control</i>, the control that moved most like the redox programme. A recurring closest control is itself a lead: unfolded protein response suggests protein stress; immediate-early genes suggest culture or handling stress.</p>
+<div class="warn"><b>Programmes that share genes are not independent.</b> NRF2 targets share genes with glutathione, thioredoxin and ferroptosis. In the planted simulation, only NRF2 targets and glutathione were changed, yet thioredoxin and ferroptosis also passed in RNA (partial rho 0.14 and 0.17) through their shared genes. Screen 6 shows which genes carry a signal.</div>
+
+<h2>9. Screen 4: whole-genome doubling (Cell 9)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Does a signal hold if lines are split simply into doubled and not doubled?</td></tr><tr><td><b>How it works</b></td><td>Screens 1-3 again, with whole-genome doubling (yes/no, from PureCN) in place of ploidy as a number.</td></tr><tr><td><b>Passes when</b></td><td>Same three thresholds</td></tr><tr><td><b>What can fool it</b></td><td>Lines near the cut-off. It checks that a signal does not depend on how ploidy is measured.</td></tr></tbody></table>
+<p class="cellname">Cell 9 - Screen 4: same tests with whole-genome doubling (yes/no)</p><pre>#@title Cell 9 - Screen 4: same tests with whole-genome doubling (yes/no)
+wgd = test_link(expression, &quot;RNA, whole-genome doubling&quot;, exposure=&quot;wgd&quot;)
+test_random(wgd)
+test_controls(wgd)
+print(f&quot;{int(wgd[&#x27;table&#x27;].wgd.sum())} of {len(wgd[&#x27;table&#x27;])} lines have a doubled genome&quot;)
+display(wgd[&quot;result&quot;].loc[wgd[&quot;result&quot;].programme.str.startswith(&quot;REDOX&quot;),
+                          [&quot;programme&quot;, &quot;partial_rho&quot;, &quot;q_fdr&quot;, &quot;p_vs_random&quot;, &quot;p_vs_controls&quot;]].round(3))</pre>
+<div class="ok"><b>Tested.</b> In the planted simulation, 434 of 1,122 lines were doubled; NRF2 targets gave partial rho 0.38 and passed all three checks.</div>
+
+<h2>10. Screen 5: proteins (Cell 10)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Do redox proteins, not only their RNA, change with ploidy?</td></tr><tr><td><b>How it works</b></td><td>Screens 1-3 on CCLE mass-spectrometry protein levels. Proliferation is still measured from RNA. Proteins missing in more than 20% of lines are left out.</td></tr><tr><td><b>Passes when</b></td><td>Same three thresholds; check <i>genes_used</i> is at least 5 and <i>lines</i> at least about 150</td></tr><tr><td><b>What can fool it</b></td><td>Fewer lines (about 375 before filtering) means less power: a real but small link can fail here. A failure is weaker evidence than a pass.</td></tr></tbody></table>
+<p class="cellname">Cell 10 - Screen 5: same tests on proteins</p><pre>#@title Cell 10 - Screen 5: same tests on proteins
+prot = None
+if proteins is not None and len(proteins) &gt;= 25:
+    prot = test_link(proteins, &quot;Protein&quot;)
+    test_random(prot)
+    test_controls(prot)
+    display(prot[&quot;result&quot;].loc[prot[&quot;result&quot;].programme.str.startswith(&quot;REDOX&quot;),
+                               [&quot;programme&quot;, &quot;lines&quot;, &quot;genes_used&quot;, &quot;partial_rho&quot;, &quot;q_fdr&quot;, &quot;p_vs_random&quot;,
+                                &quot;p_vs_controls&quot;]].round(3))
+else:
+    print(&quot;Proteins skipped: switched off in Cell 1 or fewer than 25 matching cell lines.&quot;)</pre>
+<div class="ok"><b>Tested</b> on mock protein files in the Gygi layout, including a line measured twice (averaged) and missing values. Planted simulation: NRF2 targets 0.52, glutathione 0.57, both passing all checks.</div>
+
+<h2>11. Screen 6: gene by gene (Cell 11)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Which individual genes change with ploidy, and do RNA and protein agree?</td></tr><tr><td><b>How it works</b></td><td>Each redox and control gene, and each gene of interest, goes through Screen 1 on its own. The false discovery rate is computed across all genes tested (about 170).</td></tr><tr><td><b>Passes when</b></td><td>q below 0.05; strongest when significant in both RNA and protein in the same direction</td></tr><tr><td><b>What can fool it</b></td><td>Single genes are noisier than programmes and are not checked against random genes or controls. Use this to see what drives a programme result, or to find leads outside the programmes.</td></tr></tbody></table>
+<p class="cellname">Cell 11 - Screen 6: gene by gene</p><pre>#@title Cell 11 - Screen 6: gene by gene
+def gene_screen(ctx, label):
+    &quot;&quot;&quot;Every redox and control gene, plus GENES_OF_INTEREST, tested on its own against ploidy (same adjustment
+    and shuffles as Screen 1). False discovery rate is computed across all genes tested.&quot;&quot;&quot;
+    data, x, xs, basis = ctx[&quot;data&quot;], ctx[&quot;x&quot;], ctx[&quot;xs&quot;], ctx[&quot;basis&quot;]
+    genes = list(dict.fromkeys([g for v in PROGRAMMES.values() for g in v] + GOI))
+    genes = [g for g in genes if g in data.columns and data[g].notna().mean() &gt;= 0.8]
+    z = zscore(data[genes])
+    R = residual(z.fillna(z.mean()).fillna(0).to_numpy(), basis)
+    R = (R - R.mean(0)) / np.where(R.std(0) &gt; 0, R.std(0), 1)
+    xz = (x - x.mean()) / x.std()
+    xsz = (xs - xs.mean(0)) / xs.std(0)
+    rho = xz @ R / len(xz)
+    null = xsz.T @ R / len(xz)
+    p = (1 + (np.abs(null) &gt;= np.abs(rho)).sum(0)) / (null.shape[0] + 1)
+    member = {g: &quot;, &quot;.join(n.split(&quot;: &quot;)[1] for n, v in PROGRAMMES.items() if g in v) for g in genes}
+    out = pd.DataFrame({&quot;data&quot;: label, &quot;gene&quot;: genes, &quot;partial_rho&quot;: rho, &quot;p_perm&quot;: p,
+                        &quot;programmes&quot;: [member[g] or &quot;gene of interest&quot; for g in genes]})
+    out[&quot;q_fdr&quot;] = fdr(out[&quot;p_perm&quot;])
+    return out.assign(_abs=out.partial_rho.abs()).sort_values([&quot;p_perm&quot;, &quot;_abs&quot;], ascending=[True, False]).drop(columns=&quot;_abs&quot;)
+
+
+gene_results = [gene_screen(rna, &quot;RNA&quot;)]
+if prot is not None:
+    gene_results.append(gene_screen(prot, &quot;Protein&quot;))
+gene_results = pd.concat(gene_results, ignore_index=True)
+both = gene_results.pivot_table(index=&quot;gene&quot;, columns=&quot;data&quot;, values=[&quot;partial_rho&quot;, &quot;q_fdr&quot;])
+print(&quot;Top 15 genes in RNA:&quot;)
+display(gene_results[gene_results.data == &quot;RNA&quot;].head(15).round(3))
+if prot is not None:
+    agree = both[(both[(&quot;q_fdr&quot;, &quot;RNA&quot;)] &lt; FDR_MAX) &amp; (both[(&quot;q_fdr&quot;, &quot;Protein&quot;)] &lt; FDR_MAX) &amp;
+                 (np.sign(both[(&quot;partial_rho&quot;, &quot;RNA&quot;)]) == np.sign(both[(&quot;partial_rho&quot;, &quot;Protein&quot;)]))]
+    print(f&quot;\nGenes significant in both RNA and protein, same direction: {len(agree)}&quot;)
+    display(agree.round(3))</pre>
+<div class="ok"><b>Tested.</b> Planted simulation: 43 of 171 genes passed in RNA, all from the changed programmes plus GMNN (planted). No-link simulation: none passed.</div>
+<p><b>What you should see:</b> the 15 strongest genes in RNA with the programmes they belong to, then the genes that pass in both RNA and protein.</p>
+
+<h2>12. Screen 7: Geminin and replication licensing (Cell 12)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Do GMNN and CDT1 differ with ploidy, and does Geminin go with redox?</td></tr><tr><td><b>How it works</b></td><td>For each measure (GMNN RNA, CDT1 RNA, GMNN minus CDT1, and the GMNN and CDT1 knockout effects): (a) partial correlation with ploidy and with doubling; (b) with each redox programme; (c) with each redox programme after also removing ploidy. RNA measures are compared with about 200 genes that have similar expression and follow proliferation equally closely.</td></tr><tr><td><b>Passes when</b></td><td>q below 0.05 and p_vs_matched_genes below 0.05</td></tr><tr><td><b>What can fool it</b></td><td>Proliferation. GMNN and CDT1 rise and fall with the cell cycle, so they correlate with anything else that follows proliferation. The matched-gene comparison is the guard. Knockout effects have no matched comparison, so read them with more caution.</td></tr></tbody></table>
+<p class="cellname">Cell 12 - Screen 7: Geminin and replication licensing</p><pre>#@title Cell 12 - Screen 7: Geminin and replication licensing
+def partial_assoc(table, a, scores, extra=None, n_perm=N_PERMUTATIONS):
+    &quot;&quot;&quot;Partial rank correlation of vector a with each column of scores, within tissue, adjusted for
+    proliferation (and optionally ploidy); p-value by shuffling a within tissue.&quot;&quot;&quot;
+    cols = [adjustment_basis(table)]
+    if extra is not None:
+        cols.append(np.asarray(extra, dtype=float)[:, None])
+    basis, _ = np.linalg.qr(np.column_stack(cols))
+    a_rank = pd.Series(a).rank().to_numpy()
+    xa = residual(a_rank, basis)
+    xsa = residual(shuffled_within_tissue(a_rank, table[&quot;tissue&quot;].to_numpy(), n_perm), basis)
+    rows = []
+    for name in scores.columns:
+        s = scores[name].to_numpy()
+        r = residual(np.where(np.isnan(s), np.nanmean(s), s), basis)
+        rho = float(corr(xa[:, None], r[:, None])[0])
+        rows.append({&quot;against&quot;: name, &quot;partial_rho&quot;: rho,
+                     &quot;p_perm&quot;: perm_p(rho, corr(xsa, np.repeat(r[:, None], xsa.shape[1], axis=1)))})
+    out = pd.DataFrame(rows)
+    out[&quot;q_fdr&quot;] = fdr(out[&quot;p_perm&quot;])
+    return out
+
+
+def rho_only(table, A, scores, extra=None):
+    &quot;&quot;&quot;Partial correlations of many vectors (columns of A) with each score, no shuffling (fast).&quot;&quot;&quot;
+    cols = [adjustment_basis(table)]
+    if extra is not None:
+        cols.append(np.asarray(extra, dtype=float)[:, None])
+    basis, _ = np.linalg.qr(np.column_stack(cols))
+    RA = residual(pd.DataFrame(A).rank().to_numpy(), basis)
+    S = scores.to_numpy(float)
+    RS = residual(np.where(np.isnan(S), np.nanmean(S, axis=0), S), basis)
+    RA = (RA - RA.mean(0)) / RA.std(0)
+    RS = (RS - RS.mean(0)) / RS.std(0)
+    return RA.T @ RS / len(RA)
+
+
+def matched_genes(gene, table, n=200):
+    &quot;&quot;&quot;Genes like `gene` in average expression and in how closely they follow proliferation.&quot;&quot;&quot;
+    data = expression.loc[table.index]
+    avoid = set(g for v in PROGRAMMES.values() for g in v) | set(PROLIFERATION) | set(GOI)
+    pool = [g for g in data.columns if g not in avoid and data[g].std() &gt; 0]
+    prolif = programme_scores(data, {&quot;p&quot;: PROLIFERATION})[0][&quot;p&quot;].rank()
+    level = data[pool + [gene]].mean()
+    follow = data[pool + [gene]].rank().corrwith(prolif)
+    lb = pd.qcut(level.rank(method=&quot;first&quot;), 5, labels=False)
+    fb = pd.qcut(follow.rank(method=&quot;first&quot;), 5, labels=False)
+    same = [g for g in pool if lb[g] == lb[gene] and fb[g] == fb[gene]]
+    return list(rng.choice(same, min(n, len(same)), replace=False))
+
+
+table = rna[&quot;table&quot;]
+measures = {}
+for g in GOI:
+    if g in expression.columns:
+        measures[f&quot;{g} RNA&quot;] = expression.loc[table.index, g].to_numpy(float)
+    if crispr is not None and g in crispr.columns:
+        measures[f&quot;{g} knockout effect&quot;] = crispr[g].reindex(table.index).to_numpy(float)
+if {&quot;GMNN&quot;, &quot;CDT1&quot;} &lt;= set(expression.columns):
+    measures[&quot;GMNN minus CDT1 (RNA)&quot;] = (expression.loc[table.index, &quot;GMNN&quot;] - expression.loc[table.index, &quot;CDT1&quot;]).to_numpy(float)
+
+redox_scores = rna[&quot;scores&quot;][[c for c in rna[&quot;scores&quot;].columns if c.startswith(&quot;REDOX&quot;)]]
+geminin = []
+for label, values in measures.items():
+    ok = ~np.isnan(values)
+    if ok.sum() &lt; 25:
+        continue
+    sub = table[ok]
+    ploidy_scores = pd.DataFrame({&quot;ploidy&quot;: sub[&quot;ploidy&quot;].to_numpy(), &quot;whole-genome doubling&quot;: sub[&quot;wgd&quot;].fillna(0).to_numpy()})
+    a = partial_assoc(sub, values[ok], ploidy_scores).assign(measure=label, adjusted_for_ploidy=&quot;-&quot;)
+    b = partial_assoc(sub, values[ok], redox_scores.loc[sub.index].reset_index(drop=True)).assign(measure=label, adjusted_for_ploidy=&quot;no&quot;)
+    c = partial_assoc(sub, values[ok], redox_scores.loc[sub.index].reset_index(drop=True),
+                      extra=sub[&quot;ploidy&quot;].rank().to_numpy()).assign(measure=label, adjusted_for_ploidy=&quot;yes&quot;)
+    part = pd.concat([a, b, c], ignore_index=True).assign(lines=int(ok.sum()))
+    gene = label.split()[0]
+    if label.endswith(&quot; RNA&quot;) and gene in expression.columns:
+        others = matched_genes(gene, sub)
+        A = expression.loc[sub.index, others].to_numpy(float)
+        targets = pd.concat([ploidy_scores, redox_scores.loc[sub.index].reset_index(drop=True)], axis=1)
+        null_no = rho_only(sub, A, targets)
+        null_yes = rho_only(sub, A, redox_scores.loc[sub.index].reset_index(drop=True), sub[&quot;ploidy&quot;].rank().to_numpy())
+        for i, row in part.reset_index(drop=True).iterrows():
+            null = (null_yes[:, list(redox_scores.columns).index(row[&quot;against&quot;])] if row[&quot;adjusted_for_ploidy&quot;] == &quot;yes&quot;
+                    else null_no[:, list(targets.columns).index(row[&quot;against&quot;])])
+            part.loc[part.index[i], &quot;matched_low&quot;] = np.quantile(null, 0.025)
+            part.loc[part.index[i], &quot;matched_high&quot;] = np.quantile(null, 0.975)
+            part.loc[part.index[i], &quot;p_vs_matched_genes&quot;] = perm_p(row[&quot;partial_rho&quot;], null)
+    geminin.append(part)
+geminin = pd.concat(geminin, ignore_index=True) if geminin else pd.DataFrame()
+for c in (&quot;matched_low&quot;, &quot;matched_high&quot;, &quot;p_vs_matched_genes&quot;):
+    if not geminin.empty and c not in geminin.columns:
+        geminin[c] = np.nan
+if geminin.empty:
+    print(&quot;None of the genes of interest were found.&quot;)
+else:
+    for label in measures:
+        part = geminin[geminin.measure == label]
+        if part.empty:
+            continue
+        print(f&quot;\n{label} ({part.lines.iloc[0]} lines)&quot;)
+        cols = [&quot;against&quot;, &quot;adjusted_for_ploidy&quot;, &quot;partial_rho&quot;, &quot;p_perm&quot;, &quot;q_fdr&quot;]
+        cols += [c for c in (&quot;matched_low&quot;, &quot;matched_high&quot;, &quot;p_vs_matched_genes&quot;) if part[c].notna().any()]
+        display(part[cols].round(3).reset_index(drop=True))</pre>
+<div class="ok"><b>Tested.</b> Planted simulation (GMNN lower in higher-ploidy lines): GMNN vs ploidy -0.41, matched genes -0.04 to 0.07; GMNN vs NRF2 targets -0.13, falling to +0.09 and no longer beating matched genes once ploidy was removed. No-link simulation: GMNN vs redox up to 0.11 (q = 0.007), but within the matched-gene range for every programme.</div>
+<h3>How to read Screen 7</h3>
+<table class=""><thead><tr><th>Pattern</th><th>What it suggests</th></tr></thead><tbody><tr><td><b>GMNN lower (or GMNN minus CDT1 lower) with ploidy</b></td><td>Weaker licensing brake in high-ploidy lines, consistent with re-replication. Worth comparing with the fly result</td></tr><tr><td><b>GMNN knockout more harmful (more negative) in high-ploidy lines</b></td><td>High-ploidy lines depend more on Geminin, perhaps to prevent further re-replication</td></tr><tr><td><b>GMNN goes with redox, but not after removing ploidy</b></td><td>The Geminin-redox link runs through ploidy. This was the pattern in the planted simulation</td></tr><tr><td><b>GMNN goes with redox even after removing ploidy</b></td><td>A link between Geminin and redox that ploidy does not explain; a separate lead</td></tr><tr><td><b>Significant, but within the matched-gene range</b></td><td>Explained by proliferation, not Geminin specifically</td></tr><tr><td><b>Nothing passes</b></td><td>No Geminin signal in cell lines; does not contradict the fly result (see the box in section 1)</td></tr></tbody></table>
+
+<h2>13. Follow-up runs: TP53 and proliferation (Cell 1 settings)</h2>
+<p>Run the main analysis first, with the default settings. Then rerun with these settings changed, one at a time, and
+keep every run. Cell 15 adds the settings to each file name (for example <i>route_a_findings_TP53normal_prolif_alltissues.csv</i>), so runs do not overwrite each other.</p>
+<table class=""><thead><tr><th>Setting in Cell 1</th><th>What it does</th><th>Why</th></tr></thead><tbody><tr><td><b>TP53_MODE = TP53-normal lines only</b></td><td>Keeps only lines with no damaging or hotspot TP53 mutation</td><td>Cells that double their genome usually need p53 switched off, and p53 also switches on some redox genes (SESN1, TIGAR, GPX1). Mixing TP53-mutant and normal lines can hide a redox difference</td></tr><tr><td><b>TP53_MODE = Adjust for TP53 status</b></td><td>Keeps all lines and removes the TP53-mutant/normal difference, like tissue</td><td>Same reason, with more lines; weaker if the link exists only in TP53-normal lines</td></tr><tr><td><b>ADJUST_PROLIFERATION unticked</b></td><td>Compares within tissue only</td><td>Shows how much the proliferation adjustment changes the results. If ploidy affects redox through how fast cells divide, the adjustment removes that part</td></tr></tbody></table>
+<div class="ok"><b>Tested</b> on a simulation built to look like the first real run: redox rose with ploidy only in TP53-normal lines, and TP53-mutant lines had higher ploidy and lower redox. With all lines, NRF2 targets gave -0.07 and the DNA damage (p53) control -0.28, as in the real data. TP53-normal lines only gave +0.53; adjusting for TP53 status gave +0.29. All 15 cells ran in both modes.</div>
+<div class="warn"><b>The DNA damage control is mostly a p53 readout.</b> Most of its genes (CDKN1A, MDM2, BAX, TP53I3, SESN1, RRM2B, DDB2) are switched on by p53. A negative correlation with ploidy in all lines is expected, since genome-doubled cells usually lack p53 activity. If it moves towards zero in TP53-normal lines, the TP53 split is working as intended.</div>
+<div class="warn"><b>Several runs means more chances of a false positive.</b> Report every run, including the default one, and treat a result that appears only in one follow-up run as a lead to confirm in another dataset.</div>
+
+<h2>14. Findings, ranked by evidence (Cell 13)</h2>
+<p class="cellname">Cell 13 - Findings, ranked by strength of evidence</p><pre>#@title Cell 13 - Findings, ranked by strength of evidence
+def passes(row):
+    return (row[&quot;q_fdr&quot;] &lt; FDR_MAX) and (row[&quot;p_vs_random&quot;] &lt; RANDOM_P_MAX) and (row[&quot;p_vs_controls&quot;] &lt; CONTROL_P_MAX)
+
+
+results = pd.concat([c[&quot;result&quot;] for c in (rna, wgd, prot) if c is not None], ignore_index=True)
+redox = results[results.programme.str.startswith(&quot;REDOX&quot;)].copy()
+redox[&quot;passes_all_checks&quot;] = redox.apply(passes, axis=1)
+findings = []
+for name, part in redox.groupby(&quot;programme&quot;, sort=False):
+    get = lambda label: part[part.data == label].iloc[0] if (part.data == label).any() else None
+    r, p, w = get(&quot;RNA&quot;), get(&quot;Protein&quot;), get(&quot;RNA, whole-genome doubling&quot;)
+    passed = [row for row in (r, p) if row is not None and row[&quot;passes_all_checks&quot;]]
+    signs = {np.sign(row[&quot;partial_rho&quot;]) for row in passed}
+    if r is not None and p is not None and r[&quot;passes_all_checks&quot;] and p[&quot;passes_all_checks&quot;] and len(signs) == 1:
+        level = &quot;Strong: RNA and protein&quot;
+    elif passed:
+        level = &quot;Moderate: &quot; + (&quot;RNA&quot; if r is not None and r[&quot;passes_all_checks&quot;] else &quot;protein&quot;) + &quot; only&quot;
+    elif any(row is not None and row[&quot;q_fdr&quot;] &lt; FDR_MAX for row in (r, p)):
+        level = &quot;Weak: correlates, but not specific&quot;
+    else:
+        level = &quot;None detected&quot;
+    lead = r if r is not None else p
+    findings.append({&quot;programme&quot;: name[7:], &quot;evidence&quot;: level,
+                     &quot;direction&quot;: &quot;higher with ploidy&quot; if lead[&quot;partial_rho&quot;] &gt; 0 else &quot;lower with ploidy&quot;,
+                     &quot;rho_RNA&quot;: None if r is None else round(r[&quot;partial_rho&quot;], 3),
+                     &quot;rho_protein&quot;: None if p is None else round(p[&quot;partial_rho&quot;], 3),
+                     &quot;whole_genome_doubling&quot;: None if w is None else (&quot;passes&quot; if w[&quot;passes_all_checks&quot;] else &quot;does not pass&quot;),
+                     &quot;closest_control_RNA&quot;: None if r is None else r[&quot;closest_control&quot;]})
+order = {&quot;Strong&quot;: 0, &quot;Moderate&quot;: 1, &quot;Weak&quot;: 2, &quot;None&quot;: 3}
+findings = pd.DataFrame(findings)
+findings = findings.sort_values(&quot;evidence&quot;, key=lambda s: s.str.split(&quot;:&quot;).str[0].map(order))
+display(findings.reset_index(drop=True))
+for _, row in findings.iterrows():
+    print(f&quot;{row[&#x27;programme&#x27;]}: {row[&#x27;evidence&#x27;]}&quot; + (&quot;&quot; if row[&quot;evidence&quot;].startswith(&quot;None&quot;) else f&quot;, {row[&#x27;direction&#x27;]}&quot;))</pre>
+<div class="ok"><b>Tested.</b> Planted simulation: NRF2 targets and glutathione labelled <i>Strong</i>; thioredoxin and ferroptosis <i>Moderate: RNA only</i> through shared genes. No-link simulation: every programme <i>None detected</i>.</div>
+<table class=""><thead><tr><th>Evidence label</th><th>Meaning</th></tr></thead><tbody><tr><td><b>Strong: RNA and protein</b></td><td>Passes all three checks in RNA and in protein, same direction</td></tr><tr><td><b>Moderate: RNA only / protein only</b></td><td>Passes all three checks in one data type</td></tr><tr><td><b>Weak: correlates, but not specific</b></td><td>Passes Screen 1 only; random genes or stress controls move as much</td></tr><tr><td><b>None detected</b></td><td>No programme-level change with ploidy</td></tr></tbody></table>
+<p>The table also shows the direction, partial rho in RNA and protein, whether whole-genome doubling agrees, and the closest
+stress control. Check Screen 6 for programmes that share genes before counting them as separate findings.</p>
+
+<h2>15. Charts and saving (Cells 14-15)</h2>
+<p>Results tables and charts are saved into the same Drive folder, so they are kept after the session ends.</p>
+<p>The first chart shows one dot per programme (blue RNA, orange protein) with a grey bar for the random-set range. The second
+plots each gene's partial correlation against its false discovery rate; blue genes pass, and the 12 strongest are named.</p>
+<p class="cellname">Cell 14 - Charts</p><pre>#@title Cell 14 - Charts
+plot = results[results.data.isin([&quot;RNA&quot;, &quot;Protein&quot;])]
+names = list(dict.fromkeys(plot.programme))
+fig, ax = plt.subplots(figsize=(8, 0.45 * len(names) + 1.5))
+for label, offset, colour in ((&quot;RNA&quot;, -0.18, &quot;#3b6ea8&quot;), (&quot;Protein&quot;, 0.18, &quot;#c26a2e&quot;)):
+    part = plot[plot.data == label]
+    if part.empty:
+        continue
+    y = np.array([names.index(n) for n in part.programme]) + offset
+    ax.scatter(part.partial_rho, y, color=colour, label=label, zorder=3)
+    has = part.random_low.notna().to_numpy()
+    ax.hlines(y[has], part.random_low[has], part.random_high[has], color=&quot;#999999&quot;, lw=4, alpha=0.5)
+ax.axvline(0, color=&quot;#444444&quot;, lw=0.8)
+ax.set_yticks(range(len(names)))
+ax.set_yticklabels([n.replace(&quot;REDOX: &quot;, &quot;&quot;).replace(&quot;CONTROL: &quot;, &quot;control: &quot;) for n in names])
+ax.invert_yaxis()
+ax.set_xlabel(&quot;Partial correlation with ploidy (within tissue, adjusted for proliferation)&quot;)
+ax.set_title(&quot;Programmes vs ploidy. Grey bars: range reached by random gene sets&quot;, loc=&quot;left&quot;, fontsize=11)
+ax.legend(frameon=False, loc=&quot;lower right&quot;)
+plt.tight_layout()
+plt.savefig(os.path.join(DATA_DIR, &quot;chart_programmes.png&quot;), dpi=150)
+plt.show()
+
+fig, ax = plt.subplots(figsize=(7, 5))
+part = gene_results[gene_results.data == &quot;RNA&quot;]
+hit = part.q_fdr &lt; FDR_MAX
+ax.scatter(part.partial_rho[~hit], -np.log10(part.q_fdr[~hit]), s=12, color=&quot;#bbbbbb&quot;)
+ax.scatter(part.partial_rho[hit], -np.log10(part.q_fdr[hit]), s=16, color=&quot;#3b6ea8&quot;)
+for _, row in part.head(12).iterrows():
+    ax.annotate(row[&quot;gene&quot;], (row[&quot;partial_rho&quot;], -np.log10(row[&quot;q_fdr&quot;])), fontsize=8, xytext=(3, 2),
+                textcoords=&quot;offset points&quot;)
+ax.axhline(-np.log10(FDR_MAX), color=&quot;#999999&quot;, lw=0.8, ls=&quot;--&quot;)
+ax.set_xlabel(&quot;Partial correlation with ploidy (RNA)&quot;)
+ax.set_ylabel(&quot;-log10 false discovery rate&quot;)
+ax.set_title(&quot;Gene by gene (Screen 6). Blue: false discovery rate below 0.05&quot;, loc=&quot;left&quot;, fontsize=11)
+plt.tight_layout()
+plt.savefig(os.path.join(DATA_DIR, &quot;chart_genes.png&quot;), dpi=150)
+plt.show()</pre>
+<p class="cellname">Cell 15 - Save and download the results</p><pre>#@title Cell 15 - Save and download the results
+# The file names record the settings, so runs with different settings do not overwrite each other
+tag = &quot;_&quot;.join([{&quot;All lines&quot;: &quot;allTP53&quot;, &quot;TP53-normal lines only&quot;: &quot;TP53normal&quot;, &quot;Adjust for TP53 status&quot;: &quot;TP53adjusted&quot;}[TP53_MODE],
+                &quot;prolif&quot; if ADJUST_PROLIFERATION else &quot;noprolif&quot;,
+                &quot;brain&quot; if LINEAGE == &quot;CNS/Brain only&quot; else &quot;alltissues&quot;])
+outputs = {f&quot;route_a_programmes_{tag}.csv&quot;: results, f&quot;route_a_findings_{tag}.csv&quot;: findings,
+           f&quot;route_a_genes_{tag}.csv&quot;: gene_results, f&quot;route_a_geminin_{tag}.csv&quot;: geminin}
+for name, frame in outputs.items():
+    frame.to_csv(os.path.join(DATA_DIR, name), index=False)
+print(&quot;Saved to your Drive folder:&quot;, &quot;, &quot;.join(outputs))
+try:
+    from google.colab import files
+    for name in list(outputs):
+        files.download(os.path.join(DATA_DIR, name))
+except Exception:
+    print(&quot;Open the Files panel on the left to download the tables and charts.&quot;)</pre>
+<div class="ok"><b>Tested:</b> both charts drawn and four tables saved on mock data. The download step itself runs only in Colab.</div>
+
+<h2>16. Results summary for your supervisors</h2>
+<table class="summary"><thead><tr><th>Item</th><th>Your result</th></tr></thead><tbody><tr><td><b>Date and settings recorded</b></td><td></td></tr><tr><td><b>Cell lines analysed; tissues; NRF2-pathway mutants removed</b></td><td></td></tr><tr><td><b>Lines with protein and CRISPR data</b></td><td></td></tr><tr><td><b>Programmes labelled Strong or Moderate, with direction (Cell 13)</b></td><td></td></tr><tr><td><b>Closest stress control for programmes that failed Screen 3</b></td><td></td></tr><tr><td><b>Whole-genome doubling: agrees or not</b></td><td></td></tr><tr><td><b>Genes passing in both RNA and protein (Screen 6)</b></td><td></td></tr><tr><td><b>GMNN vs ploidy: partial rho, q, beats matched genes?</b></td><td></td></tr><tr><td><b>GMNN minus CDT1 vs ploidy</b></td><td></td></tr><tr><td><b>GMNN knockout effect vs ploidy</b></td><td></td></tr><tr><td><b>GMNN vs redox: before and after removing ploidy</b></td><td></td></tr><tr><td><b>TP53-normal lines only: lines kept; partial rho for each redox programme and the DNA damage control</b></td><td></td></tr><tr><td><b>Adjust for TP53 status: same</b></td><td></td></tr><tr><td><b>Without proliferation adjustment: same</b></td><td></td></tr><tr><td><b>CNS/Brain-only run, if done</b></td><td></td></tr><tr><td><b>Leads to take to brain data or flies</b></td><td></td></tr></tbody></table>
+
+<h2>17. Troubleshooting</h2>
+<table class=""><thead><tr><th>What happens</th><th>Likely cause</th><th>What to do</th></tr></thead><tbody><tr><td><b>Cell 1: Folder not found</b></td><td>Folder name or location differs</td><td>Find the folder in Google Drive and copy its path into DATA_DIR; it starts /content/drive/MyDrive/</td></tr><tr><td><b>Cell 1: Drive asks to connect again</b></td><td>The session restarted</td><td>Normal; click Allow. Files stay in Drive</td></tr><tr><td><b>Cell 2: MISSING ...</b></td><td>File not in the folder, or renamed</td><td>Add or rename it in Google Drive, then rerun Cell 2</td></tr><tr><td><b>Cell 3: Expected a column like ...</b></td><td>DepMap changed a file layout</td><td>Send me the message and the file name</td></tr><tr><td><b>Cell 3: protein layout not recognised</b></td><td>Different protein file</td><td>Untick USE_PROTEINS in Cell 1; send me the first lines of the file</td></tr><tr><td><b>Session crashed / out of memory</b></td><td>Expression and CRISPR files are large</td><td>Runtime &rarr; Restart session and run from Cell 1 (files stay in Drive), or untick USE_CRISPR</td></tr><tr><td><b>Cell 12: None of the genes of interest were found</b></td><td>Typo or alias in GENES_OF_INTEREST</td><td>Use official symbols (GMNN, not Geminin)</td></tr><tr><td><b>All p-values exactly 0.0005 or 0.002</b></td><td>The smallest value the shuffles allow</td><td>Normal; report as below 0.001 or below 0.005</td></tr></tbody></table>
+
+<h2>18. What I tested and what I did not</h2>
+<div class="warn"><b>Tested on simulated data:</b> all 15 cells, on mock files built in the DepMap and CCLE layouts (including the newer DepMap expression layout and a duplicated protein sample), in two scenarios: a planted link between ploidy, redox and GMNN (found by every screen), and no link with tissue, proliferation and KEAP1 confounding (nothing labelled; Geminin correlations caught by the matched-gene comparison). <b>Not tested:</b> the Google Drive connection and the real file layouts; DepMap's 25Q2 notes say ploidy is available only for lines released up to 24Q4, which is why the 24Q4 files are used. The TP53 split uses DepMap's damaging and hotspot mutation calls only; lines with TP53 lost by other routes count as normal. <b>Not verified:</b> the gene lists are a curated starter set; have your supervisor check them or replace them with MSigDB sets before results are shared.</div>
+</body></html>

@@ -1,0 +1,1100 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Route B (fly): polyploidy and redox in the fly brain</title><style>
+@page { size: A4; margin: 18mm 17mm 20mm 17mm; }
+body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9.6pt; color: #1d1d1d; line-height: 1.42; }
+h1 { color: #1f3b5c; font-size: 22pt; line-height: 1.15; margin: 0 0 6px 0; }
+.sub { color: #666; font-size: 11pt; margin-top: 0; }
+h2 { color: #1f3b5c; font-size: 15pt; margin: 22px 0 8px 0; page-break-after: avoid; }
+h3 { color: #2a7a73; font-size: 11.5pt; margin: 16px 0 6px 0; page-break-after: avoid; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0 10px 0; font-size: 8.6pt; page-break-inside: auto; }
+tr { page-break-inside: avoid; }
+th { background: #1f3b5c; color: white; text-align: left; padding: 6px 7px; font-weight: bold; }
+td { padding: 6px 7px; border-bottom: 1px solid #d5dbe3; vertical-align: top; }
+tbody tr:nth-child(even) td { background: #eef1f6; }
+table.glance thead { display: none; }
+table.glance td:first-child { width: 22%; background: #eef1f6; }
+table.glance { border-top: 2px solid #1f3b5c; }
+table.summary td:first-child { width: 62%; }
+pre { font-family: 'DejaVu Sans Mono', monospace; font-size: 6.6pt; line-height: 1.32; background: #f7f8fa;
+      border-left: 3px solid #c9d1dc; padding: 7px 9px; white-space: pre-wrap; margin: 4px 0 8px 0; }
+.cellname { font-weight: bold; margin: 12px 0 2px 0; page-break-after: avoid; }
+.ok { background: #eef7ee; border: 1px solid #9fcb9f; padding: 8px 10px; margin: 6px 0 12px 0; font-size: 8.8pt; page-break-inside: avoid; }
+.warn { background: #fdf6e3; border: 1px solid #e3c26a; padding: 8px 10px; margin: 8px 0 12px 0; font-size: 8.8pt; page-break-inside: avoid; }
+.small { font-size: 8.4pt; color: #555; }
+ol, ul { padding-left: 20px; } li { margin-bottom: 4px; }
+</style></head><body>
+<h1>Route B (fly): polyploidy and redox in the fly brain: a step-by-step guide</h1>
+<p class="sub">Two fly analyses: one you can run now with public RNA-seq from optic lobes and central brain at four ages,
+and a single-cell ATAC analysis ready for when the fragment files are obtained. Exploratory; for Google Colab; written
+for a beginner.</p>
+
+<h2>Data access: what is available now</h2>
+<table class=""><thead><tr><th>Data</th><th>What it gives</th><th>Status</th><th>Used in</th></tr></thead><tbody><tr><td><b>GSE153165</b> (Nandakumar et al. 2020, eLife): bulk RNA-seq of optic lobe, central brain and ventral nerve cord at 0, 2, 7 and 21 days (72 samples)</td><td>Gene expression where polyploidy rises steeply (optic lobe) and where it stays low (central brain)</td><td><b>Public, on GEO.</b> The notebook downloads it</td><td>Part 1</td></tr><tr><td><b>Fly gene annotation</b> (Ensembl release 112, BDGP6.46)</td><td>Gene names and positions</td><td><b>Already in your Drive</b> (route_b_fly folder)</td><td>Parts 1 and 2</td></tr><tr><td><b>Single-cell ATAC fragment files</b> (Janssens et al. 2022, Aerts lab)</td><td>Per-cell ploidy from overlapping fragments</td><td><b>Available again</b> (since 19 Nov 2026) at flybrain.aertslab.org/downloads/cellRanger/. The helper notebook <i>RouteB_fly_download_Aerts.ipynb</i> lists the runs and downloads them to Drive. GEO (GSE163697) does not have these files</td><td>Part 2</td></tr><tr><td><b>Aging fly brain atlas</b> (Davie et al. 2018): single-cell RNA, 0-50 days</td><td>Cell-type expression with age; no ploidy</td><td>Public; not used yet</td><td>Possible extension</td></tr></tbody></table>
+<div class="warn"><b>Even with the fragment files, Part 2 has a limit.</b> The Aerts lab single-cell ATAC data come from larvae, pupae and young adults, and their extra adult runs left out the optic lobes. Polyploid cells appear only from day 7 and are mostly in the optic lobes, so those data may contain too few polyploid cells. Part 1 uses older flies and includes the optic lobes.</div>
+
+<h1 style="font-size:17pt;margin-top:22px">Part 1. Optic lobe versus central brain with age (run now)</h1>
+
+<h2>P1.1 What it tests</h2>
+<p>Nandakumar et al. measured polyploidy by flow cytometry and sequenced RNA from the same brain regions and ages. In the
+<b>optic lobe</b> polyploidy rises from about 1% to over 20% by day 21; in the <b>central brain</b> it stays much lower.
+If polyploid cells change their redox genes, the optic lobe should change with age <b>more than</b> the central brain.
+The notebook measures exactly that difference (an age-by-region interaction) for each gene programme.</p>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Does a programme change with age differently in the optic lobe than in the central brain?</td></tr><tr><td><b>How it works</b></td><td>For each programme score: score = region + age (log2 of days + 1, because the first time point is day 0) + region x age (+ sex). The region x age term is the difference between the optic lobe's and central brain's age slopes. Screens 2 and 3 compare it with random gene sets and stress controls.</td></tr><tr><td><b>Passes when</b></td><td>False discovery rate below 0.05, beats random gene sets (p below 0.05) and every stress control (p below 0.05)</td></tr><tr><td><b>What can fool it</b></td><td>Anything else that changes with age in the optic lobe only. The paper reports DNA damage and cell cycle genes rising there with age, so a result is a lead, not proof that polyploid cells cause it.</td></tr></tbody></table>
+<div class="warn"><b>Built-in positive control.</b> The paper reported the p53 head DNA damage response genes (Ku80, Irbp, Cht8, CG3344, CG4734, Fanci, lok, rad50, Xrp1) rising with age in the optic lobe specifically. The <i>EXPLORE: p53 head DNA damage response</i> set should therefore pass. If it does not, the samples may be mislabelled: check the table from Cell 3.</div>
+
+<h2>P1.2 Setup (Cell 1)</h2>
+<p>Upload <i>RouteB_fly_bulk_GSE153165.ipynb</i> to Colab and run Cell 1 (click <b>Allow</b> for Google Drive). It creates a
+folder <i>Colab Notebooks/route_b_fly_bulk</i> and uses the annotation you already downloaded.</p>
+<p class="cellname">Part 1, Cell 1 - Setup, settings and connect Google Drive</p><pre>#@title Cell 1 - Setup, settings and connect Google Drive
+import glob, gzip, io, os, re, subprocess, tarfile, warnings
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+warnings.filterwarnings(&quot;ignore&quot;)
+try:
+    from IPython.display import display
+except ImportError:
+    display = print
+
+DATA_DIR = &quot;/content/drive/MyDrive/Colab Notebooks/route_b_fly_bulk&quot;  #@param {type:&quot;string&quot;}
+GTF_PATH = &quot;/content/drive/MyDrive/Colab Notebooks/route_b_fly/Drosophila_melanogaster.gtf.gz&quot;  #@param {type:&quot;string&quot;}
+DATA_DIR = os.environ.get(&quot;ROUTE_BB_DATA&quot;, DATA_DIR)
+GTF_PATH = os.environ.get(&quot;ROUTE_BB_GTF&quot;, GTF_PATH)
+if DATA_DIR.startswith(&quot;/content/drive&quot;):
+    from google.colab import drive
+    drive.mount(&quot;/content/drive&quot;)
+os.makedirs(DATA_DIR, exist_ok=True)
+
+
+class StopHere(Exception):
+    &quot;&quot;&quot;Stops the notebook with a plain-language message.&quot;&quot;&quot;
+
+
+GSE = &quot;GSE153165&quot;
+N_RANDOM_SETS = 500  #@param {type:&quot;integer&quot;}
+SEED = 1  #@param {type:&quot;integer&quot;}
+FDR_MAX, RANDOM_P_MAX, CONTROL_P_MAX = 0.05, 0.05, 0.05
+rng = np.random.default_rng(SEED)
+print(&quot;Data folder:&quot;, DATA_DIR)</pre>
+
+<h2>P1.3 Download from GEO (Cell 2)</h2>
+<p>Cell 2 downloads the sample information (series matrix) and the expression table from GEO into your Drive folder. If
+GEO only has one file per sample, it downloads and unpacks those instead.</p>
+<p class="cellname">Part 1, Cell 2 - Download the GEO files (a few minutes the first time)</p><pre>#@title Cell 2 - Download the GEO files (a few minutes the first time)
+GEO = f&quot;https://ftp.ncbi.nlm.nih.gov/geo/series/{GSE[:-3]}nnn/{GSE}&quot;
+
+
+def fetch(url, path):
+    if os.path.exists(path) and os.path.getsize(path) &gt; 0:
+        print(f&quot;   {os.path.basename(path)}: already downloaded&quot;)
+        return True
+    r = subprocess.run([&quot;curl&quot;, &quot;-fsSL&quot;, &quot;-m&quot;, &quot;3600&quot;, &quot;-o&quot;, path + &quot;.part&quot;, url], capture_output=True, text=True)
+    if r.returncode != 0 or not os.path.exists(path + &quot;.part&quot;) or os.path.getsize(path + &quot;.part&quot;) == 0:
+        print(f&quot;   {os.path.basename(path)}: FAILED ({r.stderr.strip()[:120]})&quot;)
+        if os.path.exists(path + &quot;.part&quot;):
+            os.remove(path + &quot;.part&quot;)
+        return False
+    os.replace(path + &quot;.part&quot;, path)
+    print(f&quot;   {os.path.basename(path)}: {os.path.getsize(path) / 1e6:.1f} MB&quot;)
+    return True
+
+
+fetch(f&quot;{GEO}/matrix/{GSE}_series_matrix.txt.gz&quot;, os.path.join(DATA_DIR, f&quot;{GSE}_series_matrix.txt.gz&quot;))
+page = subprocess.run([&quot;curl&quot;, &quot;-fsSL&quot;, &quot;-m&quot;, &quot;120&quot;, f&quot;{GEO}/suppl/&quot;], capture_output=True, text=True).stdout
+names = sorted(set(re.findall(r&#x27;href=&quot;(GSE[^&quot;/]+)&quot;&#x27;, page)))
+print(&quot;\nSupplementary files on GEO:&quot;, names or &quot;(could not list; files already in your folder will be used)&quot;)
+tables = [n for n in names if not n.endswith(&quot;.tar&quot;) and re.search(r&quot;count|fpkm|tpm|rpkm|express|matrix|txt|csv|tsv|xls&quot;, n, re.I)]
+for n in tables:
+    fetch(f&quot;{GEO}/suppl/{n}&quot;, os.path.join(DATA_DIR, n))
+if not tables and f&quot;{GSE}_RAW.tar&quot; in names:
+    print(&quot;No combined table; downloading the per-sample archive instead&quot;)
+    fetch(f&quot;{GEO}/suppl/{GSE}_RAW.tar&quot;, os.path.join(DATA_DIR, f&quot;{GSE}_RAW.tar&quot;))
+for tar in glob.glob(os.path.join(DATA_DIR, &quot;*.tar&quot;)):
+    out = os.path.join(DATA_DIR, &quot;raw&quot;)
+    if not os.path.isdir(out):
+        with tarfile.open(tar) as t:
+            t.extractall(out)
+    print(f&quot;   unpacked {os.path.basename(tar)}: {len(os.listdir(out))} files&quot;)
+if not os.path.exists(os.path.join(DATA_DIR, f&quot;{GSE}_series_matrix.txt.gz&quot;)):
+    raise StopHere(&quot;The sample information file could not be downloaded. Run this cell again; if it still fails, send me the output.&quot;)
+if not os.path.exists(GTF_PATH):
+    raise StopHere(f&quot;Gene annotation not found at {GTF_PATH}. Fix GTF_PATH in Cell 1.&quot;)
+print(&quot;Done.&quot;)</pre>
+<div class="warn"><b>What GEO has for this study:</b> one Excel table, <i>GSE153165_polyploidy_depth_normalized_counts.xlsx</i>, with gene names in an <i>id</i> column and one column per sample. A file of 0.0 MB in the download list is the small sample-information file and is fine.</div>
+
+<h2>P1.4 Build the table and label the samples (Cell 3)</h2>
+<p>The Excel columns are named with the sequencing facility's codes (<i>Sample_72006</i>, <i>Sample_72007</i>, ...), while GEO
+names the samples like <i>0dFemaleOL1</i> (day 0, female, optic lobe, replicate 1). Nothing in the files links the two, so
+Cell 3 pairs them <b>in order</b>: the first Excel column with the first GEO sample, and so on. Region, age and sex are
+read from the GEO names. The labels are saved as <b>sample_labels.csv</b> in your Drive folder.</p>
+<p>Because the pairing is an assumption, Cell 3 then checks it against the data. Samples from the same region resemble
+each other much more than samples from different regions, so for each sample it finds the most similar other sample and
+asks whether that one carries the same region label. If the order is right, this is close to 100%; if the columns were
+in a different order, it falls to about a third (chance). Below 80%, the cell stops.</p>
+<p class="cellname">Part 1, Cell 3 - Build the expression table and read sample information</p><pre>#@title Cell 3 - Build the expression table and read sample information
+# Gene IDs to symbols, from the fly annotation
+id2sym = {}
+with gzip.open(GTF_PATH, &quot;rt&quot;) as h:
+    for line in h:
+        if &quot;\tgene\t&quot; in line:
+            gid = re.search(r&#x27;gene_id &quot;([^&quot;]+)&quot;&#x27;, line); sym = re.search(r&#x27;gene_name &quot;([^&quot;]+)&quot;&#x27;, line)
+            if gid:
+                id2sym[gid.group(1)] = sym.group(1) if sym else gid.group(1)
+
+# Sample information from the series matrix
+meta = {}
+with gzip.open(os.path.join(DATA_DIR, f&quot;{GSE}_series_matrix.txt.gz&quot;), &quot;rt&quot;, errors=&quot;replace&quot;) as h:
+    for line in h:
+        if line.startswith(&quot;!Sample_&quot;):
+            key, *vals = line.rstrip(&quot;\n&quot;).split(&quot;\t&quot;)
+            meta.setdefault(key, []).append([v.strip(&#x27;&quot;&#x27;) for v in vals])
+samples = pd.DataFrame({&quot;gsm&quot;: meta[&quot;!Sample_geo_accession&quot;][0], &quot;title&quot;: meta[&quot;!Sample_title&quot;][0]})
+samples[&quot;text&quot;] = [&quot; | &quot;.join(str(v[i]) for k, vs in meta.items() for v in vs if i &lt; len(v)) for i in range(len(samples))]
+
+
+def read_table(path):
+    opener = gzip.open if path.endswith(&quot;.gz&quot;) else open
+    if re.search(r&quot;\.xlsx?$&quot;, path):
+        return pd.read_excel(path)
+    with opener(path, &quot;rt&quot;, errors=&quot;replace&quot;) as h:
+        head = h.read(5000)
+    sep = &quot;,&quot; if head.count(&quot;,&quot;) &gt; head.count(&quot;\t&quot;) else &quot;\t&quot;
+    return pd.read_csv(path, sep=sep, comment=None, low_memory=False)
+
+
+def as_matrix(table):
+    &quot;&quot;&quot;Gene x sample numbers from a table whose first text column holds gene IDs or symbols.&quot;&quot;&quot;
+    text_cols = [c for c in table.columns if not pd.api.types.is_numeric_dtype(table[c])]
+    num_cols = [c for c in table.columns if pd.api.types.is_numeric_dtype(table[c])]
+    if not text_cols or not num_cols:
+        return None
+    key = max(text_cols, key=lambda c: table[c].astype(str).str.match(r&quot;^FBgn\d+&quot;).mean())
+    genes = table[key].astype(str).map(lambda g: id2sym.get(g.split(&quot;.&quot;)[0], g))
+    m = table[num_cols].set_index(genes).groupby(level=0).sum()
+    return m.loc[:, [c for c in m.columns if not re.search(r&quot;length|^start|^end|chr&quot;, str(c), re.I)]]
+
+
+candidates = [p for p in glob.glob(os.path.join(DATA_DIR, f&quot;{GSE}*&quot;)) if not re.search(r&quot;series_matrix|\.tar$&quot;, p)]
+expr = None
+for p in candidates:
+    try:
+        m = as_matrix(read_table(p))
+    except Exception as error:
+        print(f&quot;   could not read {os.path.basename(p)}: {type(error).__name__}&quot;)
+        continue
+    if m is not None and m.shape[1] &gt;= 6 and m.shape[0] &gt; 5000:
+        expr = m
+        print(f&quot;   using {os.path.basename(p)}: {m.shape[0]:,} genes x {m.shape[1]} samples&quot;)
+        break
+if expr is None and os.path.isdir(os.path.join(DATA_DIR, &quot;raw&quot;)):
+    cols = {}
+    for p in sorted(glob.glob(os.path.join(DATA_DIR, &quot;raw&quot;, &quot;*&quot;))):
+        try:
+            m = as_matrix(read_table(p))
+        except Exception:
+            continue
+        if m is not None and m.shape[0] &gt; 5000:
+            cols[os.path.basename(p).split(&quot;_&quot;)[0]] = m.iloc[:, -1]
+    if len(cols) &gt;= 6:
+        expr = pd.DataFrame(cols).fillna(0)
+        print(f&quot;   built from {len(cols)} per-sample files: {expr.shape[0]:,} genes&quot;)
+if expr is None:
+    raise StopHere(&quot;No expression table found among the GEO files. Send me the file list printed in Cell 2.&quot;)
+
+# Match each expression column to a GEO sample: first by any shared ID, otherwise by order
+def match(col):
+    c = str(col)
+    code = re.sub(r&quot;^\D+&quot;, &quot;&quot;, c)
+    for i, r in samples.iterrows():
+        if c in (r.gsm, r.title) or r.gsm in c or (len(r.title) &gt; 3 and r.title in c):
+            return i
+        if len(code) &gt;= 4 and re.search(rf&quot;\b{code}\b&quot;, r.text):
+            return i
+    return None
+
+
+hits = [match(c) for c in expr.columns]
+if sum(h is not None for h in hits) == expr.shape[1]:
+    info = samples.loc[hits].reset_index(drop=True)
+    info[&quot;column&quot;] = list(expr.columns)
+    print(&quot;Matched every expression column to a GEO sample by name.&quot;)
+    by_order = False
+elif expr.shape[1] == len(samples):
+    info = samples.copy().reset_index(drop=True)
+    info[&quot;column&quot;] = list(expr.columns)
+    print(f&quot;The expression columns ({expr.columns[0]}, ...) do not name the GEO samples.&quot;)
+    print(f&quot;There are {expr.shape[1]} columns and {len(samples)} GEO samples, so they are matched IN ORDER.&quot;)
+    print(&quot;This is checked below: replicates of the same group should resemble each other most.&quot;)
+    by_order = True
+else:
+    raise StopHere(f&quot;The table has {expr.shape[1]} sample columns but GEO lists {len(samples)} samples, and &quot;
+                   &quot;the column names do not match. Send me this message.&quot;)
+
+# Labels from titles such as 0dFemaleOL1 (age, sex, region, replicate) or from the descriptions
+t = info.title.astype(str)
+low = (info.title + &quot; | &quot; + info.text).str.lower()
+info[&quot;region&quot;] = t.str.extract(r&quot;(OL|CB|VNC)\d*$&quot;, expand=False)
+alt = np.select([low.str.contains(&quot;optic&quot;), low.str.contains(&quot;central brain&quot;), low.str.contains(&quot;ventral&quot;)],
+                [&quot;OL&quot;, &quot;CB&quot;, &quot;VNC&quot;], &quot;unknown&quot;)
+info[&quot;region&quot;] = info[&quot;region&quot;].fillna(pd.Series(alt))
+info[&quot;age_days&quot;] = t.str.extract(r&quot;^(\d+)\s*d&quot;, expand=False).astype(float)
+info[&quot;age_days&quot;] = info[&quot;age_days&quot;].fillna(low.str.extract(r&quot;(\d+)\s*(?:d\b|day)&quot;, expand=False).astype(float))
+tl = t.str.lower()       # the title is the most reliable source (e.g. 21dMaleCB2); descriptions can mention both sexes
+info[&quot;sex&quot;] = np.select([tl.str.contains(&quot;female&quot;), tl.str.contains(&quot;male&quot;),
+                         low.str.contains(&quot;female&quot;) &amp; ~low.str.contains(r&quot;\bmale&quot;), low.str.contains(r&quot;\bmale&quot;)],
+                        [&quot;F&quot;, &quot;M&quot;, &quot;F&quot;, &quot;M&quot;], &quot;unknown&quot;)
+info[&quot;group&quot;] = info.title.str.replace(r&quot;\d+$&quot;, &quot;&quot;, regex=True)
+
+sheet = os.path.join(DATA_DIR, &quot;sample_labels.csv&quot;)
+auto_ok = not (info.region.isin([&quot;unknown&quot;]) | info.region.isna() | info.age_days.isna() | (info.sex == &quot;unknown&quot;)).any()
+if os.path.exists(sheet) and not auto_ok:
+    info = pd.read_csv(sheet)
+    print(&quot;Using your edited sample_labels.csv&quot;)
+else:
+    info[[&quot;column&quot;, &quot;gsm&quot;, &quot;title&quot;, &quot;group&quot;, &quot;region&quot;, &quot;age_days&quot;, &quot;sex&quot;]].to_csv(sheet, index=False)
+display(info[[&quot;column&quot;, &quot;gsm&quot;, &quot;title&quot;, &quot;region&quot;, &quot;age_days&quot;, &quot;sex&quot;]])
+bad = info.region.isin([&quot;unknown&quot;]) | info.region.isna() | info.age_days.isna()
+if bad.any():
+    raise StopHere(f&quot;{int(bad.sum())} samples could not be labelled. Open sample_labels.csv in your Drive folder, fill in &quot;
+                   &quot;region (OL, CB or VNC), age_days and sex, save, and run this cell again.&quot;)
+print(info.groupby([&quot;region&quot;, &quot;age_days&quot;]).size().unstack(fill_value=0))
+print(info.groupby([&quot;region&quot;, &quot;sex&quot;]).size().unstack(fill_value=0))
+
+# Check: is each sample most similar to a replicate of its own group?
+L = np.log2(expr[info.column].astype(float) + 1)
+L = L[(L &gt; 3).mean(axis=1) &gt;= 0.8]
+L = L.loc[L.var(axis=1).sort_values().index[-2000:]]      # the 2,000 most variable expressed genes
+C = np.corrcoef((L.sub(L.mean(axis=1), axis=0)).T.to_numpy())
+np.fill_diagonal(C, -1)
+nearest = C.argmax(axis=1)
+same_group = (info.group.to_numpy()[nearest] == info.group.to_numpy()).mean()
+same_region = (info.region.to_numpy()[nearest] == info.region.to_numpy()).mean()
+print(f&quot;\nCheck: nearest neighbour is a replicate of the same group for {100 * same_group:.0f}% of samples, &quot;
+      f&quot;and from the same region for {100 * same_region:.0f}%&quot;)
+if same_region &lt; 0.8:
+    msg = &quot;Samples do not group by region as expected.&quot;
+    if by_order:
+        msg += &quot; The column order probably does not follow GEO&#x27;s sample order.&quot;
+    raise StopHere(msg + &quot; Do not go on; send me this output.&quot;)
+print(&quot;Labels look right: samples group by region.&quot;)</pre>
+<p><b>What you should see:</b> a table with one row per sample and its region, age and sex, counts per region and age
+(6 per region and age), then the check line, for example "nearest neighbour ... from the same region for 100%". The
+"same group" figure can be low: replicates of neighbouring ages look alike, so this one is for information only.
+If any sample is <i>unknown</i>, open sample_labels.csv in Google Drive (it opens in Google Sheets), fill in the missing values,
+save it as CSV with the same name, and run Cell 3 again.</p>
+
+<h2>P1.5 Normalise and choose genes (Cells 4-5)</h2>
+<p>The table is already depth-normalised, so Cell 4 only log2-transforms it (raw counts, if a table had them, would first be scaled to counts per million). Genes expressed in
+fewer than half the samples are left out. Cell 5 lists how many genes of each programme are expressed.</p>
+<p class="cellname">Part 1, Cell 4 - Normalise and choose expressed genes</p><pre>#@title Cell 4 - Normalise and choose expressed genes
+X = expr[info.column].astype(float)
+integer = np.allclose(X.to_numpy(), np.round(X.to_numpy()))
+if integer:
+    X = np.log2(X / X.sum() * 1e6 + 1)
+    print(&quot;Counts found: converted to log2 counts per million&quot;)
+else:
+    X = np.log2(X + 1) if X.max().max() &gt; 50 else X
+    print(&quot;Normalised values found (FPKM/TPM or similar): log2-transformed&quot;)
+X.columns = range(X.shape[1])
+expressed = X[(X &gt; 1).mean(axis=1) &gt;= 0.5]
+print(f&quot;Expressed genes: {len(expressed):,} of {len(X):,}&quot;)</pre>
+<p class="cellname">Part 1, Cell 5 - Gene programmes (fly gene symbols)</p><pre>#@title Cell 5 - Gene programmes (fly gene symbols)
+PROGRAMMES = {
+    &quot;REDOX: cnc (NRF2) pathway&quot;: &quot;cnc Keap1 Gclc Gclm GstD1 GstD2 GstE1 GstS1 Zw Pgd Men&quot;,
+    &quot;REDOX: thioredoxin/peroxiredoxin&quot;: &quot;Trxr-1 Trxr-2 Trx-2 Jafrac1 Jafrac2 Prx3 Prx5 PHGPx&quot;,
+    &quot;REDOX: antioxidant enzymes&quot;: &quot;Sod1 Sod2 Cat Eip71CD SelR Ogg1&quot;,
+    &quot;REDOX: iron&quot;: &quot;Fer1HCH Fer2LCH Irp1A Tsf1 Mvl&quot;,
+    &quot;REDOX: mitochondrial respiration&quot;: &quot;ND-75 ND-49 ND-30 ND-42 SdhA SdhB UQCR-C1 UQCR-C2 Cyt-c-p COX4 COX5A ATPsynbeta blw&quot;,
+    &quot;EXPLORE: licensing and cell cycle re-entry&quot;: &quot;geminin dup Cdc6 Orc1 Mcm2 Mcm3 dpa Mcm5 Mcm6 Mcm7 CycE E2f1 Myc CycD&quot;,
+    &quot;EXPLORE: p53 head DNA damage response&quot;: &quot;Ku80 Irbp Cht8 CG3344 CG4734 Fanci lok rad50 Xrp1 p53&quot;,
+    &quot;CONTROL: unfolded protein response&quot;: &quot;Hsc70-3 Xbp1 crc PEK Ire1 Atf6 Pdi ERp60 Calr&quot;,
+    &quot;CONTROL: heat shock&quot;: &quot;Hsp70Aa Hsp83 Hsp68 Hsp27 Hsp26 Hsc70-4 DnaJ-1 Hsf&quot;,
+    &quot;CONTROL: DNA damage&quot;: &quot;p53 mei-41 tefu lok spn-A mus304 Xrp1 rpr hid&quot;,
+    &quot;CONTROL: immediate-early genes&quot;: &quot;Hr38 sr kay Jra puc CrebA&quot;,
+}
+# Some genes are listed under a different name in the annotation, so each one is looked up under its synonyms too.
+# FlyBase calls Geminin &quot;geminin&quot; (CG3183); &quot;Gem&quot; is only a synonym, which is why earlier runs could not find it.
+ALIASES = {&quot;geminin&quot;: [&quot;Gem&quot;, &quot;CG3183&quot;], &quot;dup&quot;: [&quot;Cdt1&quot;], &quot;dpa&quot;: [&quot;Mcm4&quot;], &quot;Zw&quot;: [&quot;G6PD&quot;, &quot;G6pd&quot;],
+           &quot;Ero1L&quot;: [&quot;Ero1&quot;, &quot;CG1333&quot;], &quot;PHGPx&quot;: [&quot;CG12013&quot;], &quot;Gss1&quot;: [&quot;Gss&quot;], &quot;Gr1&quot;: [&quot;Gr&quot;, &quot;GR&quot;],
+           &quot;Trxr-1&quot;: [&quot;Trxr1&quot;], &quot;Jafrac1&quot;: [&quot;Prx2&quot;], &quot;Men-b&quot;: [&quot;Men-b&quot;, &quot;CG5889&quot;]}
+
+
+def resolve(g, present):
+    if g in present:
+        return g
+    for a in ALIASES.get(g, []):
+        if a in present:
+            return a
+    return None
+
+
+_present = set(expressed.index)
+_renamed, _resolved = {}, {}
+for n, v in PROGRAMMES.items():
+    out = []
+    for g in v.split():
+        r = resolve(g, _present)
+        if r:
+            out.append(r)
+            if r != g:
+                _renamed[g] = r
+    _resolved[n] = out
+PROGRAMMES = _resolved
+if _renamed:
+    print(&quot;Found under a synonym:&quot;, &quot;, &quot;.join(f&quot;{k} -&gt; {v}&quot; for k, v in _renamed.items()))
+for n, v in PROGRAMMES.items():
+    print(f&quot;{n}: {len(v)} expressed genes&quot;)
+PROGRAMMES = {n: v for n, v in PROGRAMMES.items() if len(v) &gt;= 4}</pre>
+
+<h2>P1.6 Screens (Cell 6)</h2>
+<p class="cellname">Part 1, Cell 6 - Screens: does the optic lobe change differently with age from the central brain?</p><pre>#@title Cell 6 - Screens: does the optic lobe change differently with age from the central brain?
+use = info.region.isin([&quot;OL&quot;, &quot;CB&quot;]).to_numpy()
+d = info[use].reset_index(drop=True)
+age = np.log2(d.age_days.to_numpy() + 1)   # +1 because the first time point is day 0
+ol = (d.region == &quot;OL&quot;).to_numpy(float)
+cols = [np.ones(len(d)), ol, age - age.mean(), (age - age.mean()) * ol]
+if d.sex.nunique() &gt; 1:
+    cols.append((d.sex == &quot;M&quot;).to_numpy(float))
+D = np.column_stack(cols)
+dof = len(d) - np.linalg.matrix_rank(D)
+pinv = np.linalg.pinv(D)
+c_var = np.linalg.pinv(D.T @ D)[3, 3]
+from scipy import stats
+
+
+def interaction_t(Y):
+    &quot;&quot;&quot;t statistic for (age slope in optic lobe) minus (age slope in central brain), per column of Y.&quot;&quot;&quot;
+    Y = np.asarray(Y, float)
+    Y = Y[:, None] if Y.ndim == 1 else Y
+    B = pinv @ Y
+    resid = Y - D @ B
+    s2 = (resid**2).sum(0) / dof
+    return B[3] / np.sqrt(s2 * c_var), B[3]
+
+
+Z = expressed.loc[:, np.flatnonzero(use)].T
+Z = (Z - Z.mean()) / Z.std().replace(0, np.nan)
+scores = pd.DataFrame({n: Z[v].mean(axis=1).to_numpy() for n, v in PROGRAMMES.items()})
+t, b = interaction_t(scores.to_numpy())
+result = pd.DataFrame({&quot;programme&quot;: scores.columns, &quot;genes&quot;: [len(PROGRAMMES[n]) for n in scores.columns],
+                       &quot;interaction&quot;: b, &quot;t&quot;: t, &quot;p&quot;: 2 * stats.t.sf(np.abs(t), dof)})
+for fam in (&quot;REDOX&quot;, &quot;EXPLORE&quot;):
+    m = result.programme.str.startswith(fam)
+    p = result.loc[m, &quot;p&quot;].to_numpy(); o = np.argsort(p)
+    q = np.minimum(np.minimum.accumulate((p[o] * len(p) / np.arange(1, len(p) + 1))[::-1])[::-1], 1)
+    qq = np.empty_like(q); qq[o] = q; result.loc[m, &quot;q_fdr&quot;] = qq
+
+level = expressed.mean(axis=1)
+bins = pd.qcut(level.rank(method=&quot;first&quot;), 20, labels=False)
+avoid = {g for v in PROGRAMMES.values() for g in v}
+by_bin = {b_: [g for g in level.index[bins == b_] if g not in avoid] for b_ in range(20)}
+for n in [n for n in scores.columns if not n.startswith(&quot;CONTROL&quot;)]:
+    draws = np.column_stack([Z[[rng.choice(by_bin[bins[g]]) for g in PROGRAMMES[n]]].mean(axis=1) for _ in range(N_RANDOM_SETS)])
+    null, _ = interaction_t(draws)
+    i = result.programme == n; obs = result.loc[i, &quot;t&quot;].iloc[0]
+    result.loc[i, &quot;random_low&quot;], result.loc[i, &quot;random_high&quot;] = np.quantile(null, [0.025, 0.975])
+    result.loc[i, &quot;p_vs_random&quot;] = (1 + np.sum(np.abs(null) &gt;= abs(obs))) / (len(null) + 1)
+    worst, which = 0.0, &quot;&quot;
+    for c in [c for c in scores.columns if c.startswith(&quot;CONTROL&quot;)]:
+        tc, _ = interaction_t(scores[n].to_numpy() - scores[c].to_numpy())
+        pc = 2 * stats.t.sf(abs(tc[0]), dof) if np.sign(tc[0]) == np.sign(obs) else 1.0
+        if pc &gt;= worst:
+            worst, which = pc, c.replace(&quot;CONTROL: &quot;, &quot;&quot;)
+    result.loc[i, &quot;p_vs_controls&quot;], result.loc[i, &quot;closest_control&quot;] = worst, which
+ok = (result.q_fdr &lt; FDR_MAX) &amp; (result.p_vs_random &lt; RANDOM_P_MAX) &amp; (result.p_vs_controls &lt; CONTROL_P_MAX)
+result[&quot;verdict&quot;] = np.where(result.programme.str.startswith(&quot;CONTROL&quot;), &quot;(control)&quot;,
+                    np.where(ok, np.where(result.t &gt; 0, &quot;passes: rises more with age in optic lobe&quot;,
+                                          &quot;passes: falls more with age in optic lobe&quot;),
+                    np.where(result.q_fdr &lt; FDR_MAX, &quot;not specific&quot;, &quot;no difference&quot;)))
+print(f&quot;{len(d)} samples (optic lobe and central brain), {dof} degrees of freedom&quot;)
+display(result[[&quot;programme&quot;, &quot;interaction&quot;, &quot;t&quot;, &quot;q_fdr&quot;, &quot;p_vs_random&quot;, &quot;p_vs_controls&quot;, &quot;verdict&quot;]].round(3))
+print(&quot;\nFull table (random-set range and closest control):&quot;)
+display(result.round(3))</pre>
+<div class="ok"><b>Tested</b> on mock GEO data (48 samples: 3 regions x 4 ages x 2 sexes x 2 replicates), in both file layouts. With a cnc (NRF2) change that tracked optic-lobe polyploidy: cnc passed all checks (t = 6.0), as did the p53 positive control (t = 6.1); nothing else passed. With no redox change: no redox programme passed (largest t = 1.1); the p53 positive control still passed.</div>
+<p><b>How to read it:</b> <i>interaction</i> is the extra change per doubling of age in the optic lobe compared with the
+central brain, in standard-deviation units; <i>t</i> is its strength. Verdicts: <i>passes: rises (or falls) more with age in
+optic lobe</i>, <i>not specific</i> (first screen only), or <i>no difference</i>.</p>
+
+<h2>P1.7 Gene by gene, charts and saving (Cells 7-8)</h2>
+<p class="cellname">Part 1, Cell 7 - Gene by gene, including Geminin, dup, Cdc6 and Orc1</p><pre>#@title Cell 7 - Gene by gene, including Geminin, dup, Cdc6 and Orc1
+genes = list(dict.fromkeys([g for v in PROGRAMMES.values() for g in v] + [g for g in (&quot;geminin&quot;, &quot;dup&quot;, &quot;Cdc6&quot;, &quot;Orc1&quot;) if g in expressed.index]))
+tg, bg = interaction_t(Z[genes].to_numpy())
+gene_result = pd.DataFrame({&quot;gene&quot;: genes, &quot;interaction&quot;: bg, &quot;t&quot;: tg, &quot;p&quot;: 2 * stats.t.sf(np.abs(tg), dof)})
+p = gene_result.p.to_numpy(); o = np.argsort(p)
+q = np.minimum(np.minimum.accumulate((p[o] * len(p) / np.arange(1, len(p) + 1))[::-1])[::-1], 1)
+gene_result.loc[o, &quot;q_fdr&quot;] = q
+gene_result[&quot;group&quot;] = [&quot;, &quot;.join(n.split(&quot;: &quot;)[1] for n, v in PROGRAMMES.items() if g in v) for g in genes]
+gene_result = gene_result.sort_values(&quot;p&quot;)
+display(gene_result.head(15).round(3))
+display(gene_result[gene_result.gene.isin([&quot;geminin&quot;, &quot;dup&quot;, &quot;Cdc6&quot;, &quot;Orc1&quot;])].round(3))</pre>
+<p class="cellname">Part 1, Cell 8 - Charts and saving</p><pre>#@title Cell 8 - Charts and saving
+show = [n for n in scores.columns if not n.startswith(&quot;CONTROL&quot;)][:7]
+fig, axes = plt.subplots(1, len(show), figsize=(3 * len(show), 3), sharey=True)
+for ax, n in zip(np.atleast_1d(axes), show):
+    for reg, col in ((&quot;OL&quot;, &quot;#c26a2e&quot;), (&quot;CB&quot;, &quot;#3b6ea8&quot;)):
+        m = (d.region == reg).to_numpy()
+        means = pd.Series(scores[n].to_numpy()[m]).groupby(d.age_days[m].to_numpy()).mean()
+        ax.plot(means.index, means.values, &quot;o-&quot;, color=col, label=reg)
+    ax.set_xscale(&quot;symlog&quot;, base=2, linthresh=1); ax.set_title(n.split(&quot;: &quot;)[1], fontsize=9); ax.set_xlabel(&quot;age (days)&quot;)
+np.atleast_1d(axes)[0].set_ylabel(&quot;programme score&quot;); np.atleast_1d(axes)[0].legend(frameon=False)
+plt.tight_layout(); plt.savefig(os.path.join(DATA_DIR, &quot;chart_programmes_by_age.png&quot;), dpi=150); plt.show()
+for name, frame in {&quot;bulk_programmes.csv&quot;: result, &quot;bulk_genes.csv&quot;: gene_result, &quot;bulk_scores.csv&quot;: scores.assign(**d[[&quot;region&quot;, &quot;age_days&quot;, &quot;sex&quot;]])}.items():
+    frame.to_csv(os.path.join(DATA_DIR, name), index=False)
+print(&quot;Saved to&quot;, DATA_DIR)</pre>
+<p>The chart shows each programme's average score by age, optic lobe in orange and central brain in blue. A programme that
+tracks polyploidy should separate after day 7.</p>
+<table class=""><thead><tr><th>Pattern</th><th>What it suggests</th></tr></thead><tbody><tr><td><b>A redox programme passes, rising more in the optic lobe</b></td><td>Redox genes go up where polyploid cells build up. Lead for FlyPer imaging</td></tr><tr><td><b>p53 positive control passes, redox does not</b></td><td>The data work; no redox shift tracks optic-lobe polyploidy at the tissue level</td></tr><tr><td><b>Licensing genes (Gem, dup, Cdc6, Orc1) rise in the optic lobe</b></td><td>Consistent with the re-entry the paper reported; compare with your Geminin results</td></tr><tr><td><b>p53 positive control does not pass</b></td><td>Check the Cell 3 region check and sample_labels.csv before reading anything else</td></tr></tbody></table>
+
+<h1 style="font-size:17pt;margin-top:22px">Part 2. Single-cell ATAC (when fragment files are obtained)</h1>
+<p>This part uses <i>RouteB_fly_ploidy_redox.ipynb</i>. It is ready, but waits for fragment files from the Aerts lab or
+from your own aged optic-lobe experiments. Its sections are numbered B.1 onwards.</p>
+<h2>B.1 What this notebook explores</h2>
+<p>Single-cell ATAC data record where each cell's DNA is open, as short DNA <b>fragments</b>. One copy of the genome cannot
+give two fragments that overlap, so cells whose fragments overlap a lot must hold more copies of their genome. This
+notebook uses that to estimate the <b>ploidy of every cell</b>, then compares polyploid and diploid cells of the same type.</p>
+<table class=""><thead><tr><th>Question</th><th>How it is explored</th><th>Cell</th></tr></thead><tbody><tr><td><b>Step A. Which cells are polyploid?</b></td><td>A probability for each cell of being 2C, 4C, 8C or 16C, from overlapping fragments</td><td>6</td></tr><tr><td><b>Step B. Does it work?</b></td><td>Each cell type's polyploid rate must clearly exceed the rate doublets would give; surface glia are a bonus check</td><td>7</td></tr><tr><td><b>Screen 1. Do redox genes open more or less in polyploid cells?</b></td><td>Correlate each programme's accessibility with P(polyploid) within each cluster; p-value by shuffling</td><td>10</td></tr><tr><td><b>Screen 2. Stronger than random genes?</b></td><td>Same test with 500 random gene sets matched on accessibility level</td><td>10</td></tr><tr><td><b>Screen 3. Specific to redox?</b></td><td>Must beat four non-redox stress programmes</td><td>10</td></tr><tr><td><b>Explore. Licensing and DNA damage</b></td><td>The same screens for a licensing and cell-cycle re-entry set (Gem, dup, Cdc6, Orc1, Mcms, CycE, E2f1, Myc, CycD) and the p53 head DNA damage response</td><td>10</td></tr><tr><td><b>Screen 4. Which genes?</b></td><td>Every programme gene, plus Gem, dup, Cdc6 and Orc1, tested on its own</td><td>11</td></tr><tr><td><b>Per cell type</b></td><td>The same correlation in each cluster that contains polyploid cells</td><td>12</td></tr></tbody></table>
+
+<h3>What is known (Nandakumar et al. 2020, eLife)</h3>
+<ul>
+<li><b>Polyploid cells build up after emergence.</b> Newly emerged adult brains are 98-99% diploid. Polyploid cells appear from day 7 and rise until about day 21; most are 4C.</li>
+<li><b>Mostly in the optic lobes.</b> By 3 weeks over 20% of optic-lobe cells can be polyploid, far more than in the central brain. Many neuron types, cortex glia and astrocyte-like glia become polyploid.</li>
+<li><b>Geminin and Cdc6 control it.</b> Knocking down Geminin in neurons raised optic-lobe polyploidy; knocking down Cdc6 lowered it. Neurons re-enter DNA replication.</li>
+<li><b>Oxidative stress drives it.</b> Paraquat and UV raised polyploidy by day 7, and polyploid cells resisted death, independently of p53.</li>
+<li><b>Surface glia are highly polyploid but very few</b> (under 5% of polyploid cells), so they may not form their own cluster.</li>
+</ul>
+<p>So the data to use are <b>optic lobes from flies at least 1-3 weeks old</b>. In young or central-brain samples, polyploid
+cells may be as rare as doublets.</p>
+<div class="warn"><b>Accessibility is not expression.</b> These data measure how open the DNA around a gene is, not how much RNA it makes. Open chromatin usually goes with active genes, but the link is loose for single genes. RNA from the same cells is not available in this dataset. Treat a result as a lead for RNA or protein measurements.</div>
+
+<h3>What stays the same throughout</h3>
+<table class=""><thead><tr><th>Item</th><th>Setting</th></tr></thead><tbody><tr><td><b>Comparisons</b></td><td>Always within cluster (cells of the same type) and sequencing run, adjusted for fragments per genome copy</td></tr><tr><td><b>Depth</b></td><td>Every cell is thinned to the same number of cut sites in genes before scoring, because polyploid cells have more fragments</td></tr><tr><td><b>Redox programmes (5)</b></td><td>cnc (NRF2) pathway, thioredoxin/peroxiredoxin, antioxidant enzymes, iron, mitochondrial respiration</td></tr><tr><td><b>Explore sets (2)</b></td><td>Licensing and cell-cycle re-entry; p53 head DNA damage response (genes reported up in aged optic lobes)</td></tr><tr><td><b>Stress controls (4)</b></td><td>Unfolded protein response, heat shock, DNA damage, immediate-early genes</td></tr><tr><td><b>Genes of interest</b></td><td>Gem (Geminin), dup (double parked, the fly CDT1), Cdc6 and Orc1</td></tr><tr><td><b>Labelling thresholds</b></td><td>False discovery rate below 0.05; beats random gene sets and every stress control at p below 0.05</td></tr></tbody></table>
+
+<h3>The data</h3>
+<table class=""><thead><tr><th>File</th><th>What it is</th><th>Where from</th></tr></thead><tbody><tr><td><b>fragments.tsv.gz</b> (about 280 MB per run)</td><td>Every DNA fragment, with its cell barcode</td><td>Aerts lab fly brain atlas, Cell Ranger outputs (Janssens et al. 2022, Nature)</td></tr><tr><td><b>singlecell.csv</b></td><td>Which barcodes Cell Ranger called as cells</td><td>Same folder as the fragments</td></tr><tr><td><b>Fly gene annotation (GTF)</b></td><td>Where each fly gene sits on the genome</td><td>Ensembl, Drosophila melanogaster (BDGP6)</td></tr></tbody></table>
+
+<h2>B.2 Before you start: choose and get the data</h2>
+<p>The download site works again. A small helper notebook, <b>RouteB_fly_download_Aerts.ipynb</b>, does the downloading
+for you: Cell 2 lists every run on the site with its file sizes, and Cell 3 downloads the runs you choose straight into
+<i>Colab Notebooks/route_b_fly</i>, one folder per run, with the file names the main notebook expects. If a download is
+cut off, run Cell 3 again and it resumes. Fragment files can be several GB each, so check your Drive's free space.</p>
+<ol>
+<li>Upload <i>RouteB_fly_download_Aerts.ipynb</i> to Colab and run Cells 1 and 2. Look at the run names. Choose adult runs that include the <b>optic lobes</b> (or whole brains), and the <b>oldest flies</b> available. Avoid larval and pupal runs: dividing cells there pass through 4C and look polyploid. If only a central-brain run exists (<i>FDM__9c338b__10x_scATAC_mix_DGRP_adult_central_brain</i>), it still works, but expect few polyploid cells.</li>
+<li>Type the chosen run names into <b>RUNS</b> in the helper's Cell 1, run Cell 1 again, then Cell 3. The last line it prints is the RUNS value to use in the main notebook.</li>
+<li>If <i>Drosophila_melanogaster.gtf.gz</i> is not already in <i>route_b_fly</i> (you added it for the bulk notebook): open <b>ftp.ensembl.org/pub/current_gtf/drosophila_melanogaster/</b> and download the file ending <i>.gtf.gz</i> (not <i>.chr.gtf.gz</i> or <i>.abinitio</i>). Put it in <i>route_b_fly</i> and rename it <b>Drosophila_melanogaster.gtf.gz</b>.</li>
+<li>In Cell 1, set RUNS to your run folder names, separated by commas.</li>
+</ol>
+<div class="warn"><b>Not checked from here.</b> I cannot reach the Aerts lab site from my side, so the helper was tested on a mock site with the same kind of folder listing, and the main notebook on simulated files. The chromosome names, barcode format and gene symbols are handled flexibly and checked by the notebook as it runs.</div>
+
+<h2>B.3 Setup (Cell 1)</h2>
+<p>Upload <i>RouteB_fly_ploidy_redox.ipynb</i> to Colab, then run Cell 1. Colab asks to connect to Google Drive: click
+<b>Allow</b>. RUNS must match the run folder names, separated by commas.</p>
+<p class="cellname">Cell 1 - Setup, settings and connect Google Drive</p><pre>#@title Cell 1 - Setup, settings and connect Google Drive
+import gzip, os, re, warnings
+import numpy as np
+import pandas as pd
+import scipy.sparse as sp
+import matplotlib.pyplot as plt
+from scipy.special import betaln, gammaln, logsumexp
+warnings.filterwarnings(&quot;ignore&quot;)
+try:
+    from IPython.display import display
+except ImportError:
+    display = print
+
+DATA_DIR = &quot;/content/drive/MyDrive/Colab Notebooks/route_b_fly&quot;  #@param {type:&quot;string&quot;}
+DATA_DIR = os.environ.get(&quot;ROUTE_B_DATA&quot;, DATA_DIR)
+if DATA_DIR.startswith(&quot;/content/drive&quot;):
+    from google.colab import drive
+    drive.mount(&quot;/content/drive&quot;)
+
+
+class StopHere(Exception):
+    &quot;&quot;&quot;Stops the notebook with a plain-language message.&quot;&quot;&quot;
+
+
+if not os.path.isdir(DATA_DIR):
+    raise StopHere(f&quot;Folder not found: {DATA_DIR}. Check the folder name in Google Drive and fix DATA_DIR above.&quot;)
+
+#@markdown **Runs**: one sub-folder per sequencing run, each holding fragments.tsv.gz and singlecell.csv.
+#@markdown Prefer runs that include the optic lobes and flies at least 1-3 weeks old (see the guide).
+RUNS = &quot;FDM__f2501a__10x_scATAC_mix_DGRP_adult_brain, FDM__1d60cb__10x_scATAC_mix_DGRP_adult_central_brain, FDM__9c338b__10x_scATAC_mix_DGRP_adult_central_brain&quot;  #@param {type:&quot;string&quot;}
+GTF_FILE = &quot;Drosophila_melanogaster.gtf.gz&quot;  #@param {type:&quot;string&quot;}
+N_CLUSTERS = 20  #@param {type:&quot;integer&quot;}
+MIN_FRAGMENTS = 2000  #@param {type:&quot;integer&quot;}
+MAX_FRAGMENTS = 60000  #@param {type:&quot;integer&quot;}
+GENES_OF_INTEREST = &quot;geminin, dup, Cdc6, Orc1&quot;  #@param {type:&quot;string&quot;}
+N_RANDOM_SETS = 500  #@param {type:&quot;integer&quot;}
+N_PERMUTATIONS = 2000  #@param {type:&quot;integer&quot;}
+SEED = 1  #@param {type:&quot;integer&quot;}
+
+FDR_MAX, RANDOM_P_MAX, CONTROL_P_MAX = 0.05, 0.05, 0.05
+PLOIDIES = (2, 4, 8, 16)
+AUTOSOMES = {&quot;2L&quot;, &quot;2R&quot;, &quot;3L&quot;, &quot;3R&quot;}
+BIN = 500            # base pairs per bin for gene accessibility
+PROMOTER = 1000      # base pairs upstream of each gene included
+rng = np.random.default_rng(SEED)
+RUN_LIST = [r.strip() for r in RUNS.split(&quot;,&quot;) if r.strip()]
+GOI = [g.strip() for g in re.split(r&quot;[,\s;]+&quot;, GENES_OF_INTEREST) if g.strip()]
+print(&quot;Runs:&quot;, RUN_LIST, &quot;| genes of interest:&quot;, GOI, &quot;| data folder:&quot;, DATA_DIR)</pre>
+<div class="ok"><b>Tested</b> on simulated data in the same file formats; the Drive connection runs only in Colab.</div>
+
+<h2>B.4 Step 1: check the files, read cells and genes (Cells 2-3)</h2>
+<p class="cellname">Cell 2 - Check the data files in your Drive folder</p><pre>#@title Cell 2 - Check the data files in your Drive folder
+paths, missing = {}, []
+for run in RUN_LIST:
+    for name in (&quot;fragments.tsv.gz&quot;, &quot;singlecell.csv&quot;):
+        p = os.path.join(DATA_DIR, run, name)
+        if os.path.exists(p):
+            print(f&quot;   found   {run}/{name}  ({os.path.getsize(p) / 1e6:.0f} MB)&quot;)
+            paths[(run, name)] = p
+        else:
+            print(f&quot;   MISSING {run}/{name}&quot;)
+            missing.append(f&quot;{run}/{name}&quot;)
+gtf = os.path.join(DATA_DIR, GTF_FILE)
+if os.path.exists(gtf):
+    print(f&quot;   found   {GTF_FILE}  ({os.path.getsize(gtf) / 1e6:.0f} MB)&quot;)
+else:
+    print(f&quot;   MISSING {GTF_FILE}&quot;)
+    missing.append(GTF_FILE)
+if missing:
+    raise StopHere(f&quot;{len(missing)} file(s) missing. Check folder and file names (see the guide), then run this cell again.&quot;)
+print(&quot;All files ready.&quot;)</pre>
+<p class="cellname">Cell 3 - Cells and genes</p><pre>#@title Cell 3 - Cells and genes
+def norm_chrom(c):
+    return re.sub(r&quot;^chr&quot;, &quot;&quot;, str(c))
+
+
+cells = []
+for run in RUN_LIST:
+    sc = pd.read_csv(paths[(run, &quot;singlecell.csv&quot;)])
+    sc = sc[sc[&quot;barcode&quot;] != &quot;NO_BARCODE&quot;]
+    flag = &quot;is__cell_barcode&quot; if &quot;is__cell_barcode&quot; in sc.columns else None
+    called = sc[sc[flag] == 1] if flag else sc
+    cells.append(pd.DataFrame({&quot;run&quot;: run, &quot;barcode&quot;: called[&quot;barcode&quot;].astype(str), &quot;n_recovered&quot;: len(called)}))
+cells = pd.concat(cells, ignore_index=True)
+cells[&quot;cell_id&quot;] = cells[&quot;run&quot;] + &quot;:&quot; + cells[&quot;barcode&quot;]
+print(f&quot;Cells called by Cell Ranger: {len(cells):,} in {len(RUN_LIST)} run(s)&quot;)
+
+rows = []
+with gzip.open(gtf, &quot;rt&quot;) as handle:
+    for line in handle:
+        if line.startswith(&quot;#&quot;):
+            continue
+        f = line.split(&quot;\t&quot;, 9)
+        if len(f) &lt; 9 or f[2] != &quot;gene&quot;:
+            continue
+        name = re.search(r&#x27;gene_name &quot;([^&quot;]+)&quot;&#x27;, f[8]) or re.search(r&#x27;gene_id &quot;([^&quot;]+)&quot;&#x27;, f[8])
+        rows.append((norm_chrom(f[0]), int(f[3]) - 1, int(f[4]), f[6], name.group(1)))
+genes = pd.DataFrame(rows, columns=[&quot;chrom&quot;, &quot;start&quot;, &quot;end&quot;, &quot;strand&quot;, &quot;gene&quot;]).drop_duplicates(&quot;gene&quot;)
+genes = genes[genes.chrom.isin(AUTOSOMES | {&quot;X&quot;, &quot;4&quot;})].reset_index(drop=True)
+genes[&quot;w_start&quot;] = np.where(genes.strand == &quot;+&quot;, genes.start - PROMOTER, genes.start).clip(0)
+genes[&quot;w_end&quot;] = np.where(genes.strand == &quot;-&quot;, genes.end + PROMOTER, genes.end)
+print(f&quot;Genes read from the annotation: {len(genes):,}&quot;)</pre>
+<p><b>What you should see:</b> each file marked <i>found</i>, then the number of cells Cell Ranger called and the number
+of genes read from the annotation (roughly 17,000 to 24,000, depending on the Ensembl release).</p>
+
+<h2>B.5 Step 2: read the fragments (Cell 4, 10-30 minutes per run)</h2>
+<p>This is the slow step. For every cell it counts how often fragments overlap (for ploidy) and how many fragment ends
+fall in or just upstream of each gene (gene accessibility). The file is read one chromosome at a time to save memory.</p>
+<p class="cellname">Cell 4 - Read fragments: overlap counts and gene accessibility (10-30 minutes per run)</p><pre>#@title Cell 4 - Read fragments: overlap counts and gene accessibility (10-30 minutes per run)
+K = 6
+SHIFT = np.uint64(32)
+
+
+def count_overlaps(codes, starts, ends, n, k=K):
+    &quot;&quot;&quot;Per cell, f_x = number of fragments whose left end is covered by x same-cell fragments.&quot;&quot;&quot;
+    codes, starts, ends = (np.asarray(a, dtype=np.uint64) for a in (codes, starts, ends))
+    if codes.size == 0:
+        return np.zeros((n, k), dtype=np.int64)
+    key = (codes &lt;&lt; SHIFT) | starts
+    order = np.lexsort((ends, key))
+    key, ends, codes = key[order], ends[order], codes[order]
+    keep = np.r_[True, (key[1:] != key[:-1]) | (ends[1:] != ends[:-1])]
+    key, ends, codes = key[keep], ends[keep], codes[keep]
+    end_key = np.sort((codes &lt;&lt; SHIFT) | ends)
+    depth = np.searchsorted(key, key, side=&quot;right&quot;) - np.searchsorted(end_key, key, side=&quot;right&quot;)
+    depth = np.clip(depth, 1, k).astype(np.int64)
+    return np.bincount(codes.astype(np.int64) * k + depth - 1, minlength=n * k).reshape(n, k)
+
+
+chrom_bins = {}
+offset = 0
+for c in sorted(set(genes.chrom)):
+    size = int(genes.loc[genes.chrom == c, &quot;w_end&quot;].max()) + 10 * BIN
+    chrom_bins[c] = (offset, size // BIN + 1)
+    offset += size // BIN + 1
+n_bins = offset
+
+overlaps, bin_blocks = [], []
+for run in RUN_LIST:
+    run_cells = cells[cells.run == run]
+    index = pd.Index(run_cells[&quot;barcode&quot;])
+    f_counts = np.zeros((len(index), K), dtype=np.int64)
+    acc = sp.csr_matrix((len(index), n_bins), dtype=np.float32)
+    reader = pd.read_csv(paths[(run, &quot;fragments.tsv.gz&quot;)], sep=&quot;\t&quot;, comment=&quot;#&quot;, header=None, usecols=[0, 1, 2, 3],
+                         names=[&quot;chrom&quot;, &quot;start&quot;, &quot;end&quot;, &quot;barcode&quot;], dtype={&quot;chrom&quot;: str, &quot;barcode&quot;: str},
+                         chunksize=5_000_000)
+    buffer, current = [], None
+
+    def flush(chrom, parts):
+        global acc
+        if not parts:
+            return
+        c = np.concatenate([p[0] for p in parts]); s = np.concatenate([p[1] for p in parts]); e = np.concatenate([p[2] for p in parts])
+        if chrom in AUTOSOMES:
+            f_counts[:] += count_overlaps(c, s, e, len(index))
+        if chrom in chrom_bins:
+            base, nb = chrom_bins[chrom]
+            b = np.r_[np.minimum(s // BIN, nb - 1), np.minimum((e - 1) // BIN, nb - 1)].astype(np.int32) + base
+            cc = np.r_[c, c].astype(np.int32)
+            acc = acc + sp.csr_matrix((np.ones(b.size, dtype=np.float32), (cc, b)), shape=(len(index), n_bins))
+
+    for chunk in reader:
+        chunk[&quot;chrom&quot;] = chunk[&quot;chrom&quot;].map(norm_chrom)
+        code = index.get_indexer(chunk[&quot;barcode&quot;])
+        chunk = chunk[code &gt;= 0].assign(code=code[code &gt;= 0])
+        for chrom, part in chunk.groupby(&quot;chrom&quot;, sort=False):
+            if chrom != current:
+                flush(current, buffer)
+                buffer, current = [], chrom
+            buffer.append((part[&quot;code&quot;].to_numpy(np.int32), part[&quot;start&quot;].to_numpy(np.int64), part[&quot;end&quot;].to_numpy(np.int64)))
+    flush(current, buffer)
+    overlaps.append(pd.DataFrame(f_counts, columns=[f&quot;f{i}&quot; for i in range(1, K + 1)], index=run_cells[&quot;cell_id&quot;]))
+    bin_blocks.append(acc)
+    print(f&quot;   {run}: {len(index):,} cells, {int(f_counts.sum()):,} autosomal fragments&quot;)
+
+overlaps = pd.concat(overlaps).reindex(cells[&quot;cell_id&quot;])
+cut_bins = sp.vstack(bin_blocks).tocsr()
+
+g_rows, g_cols = [], []
+for gi, g in genes.iterrows():
+    base, nb = chrom_bins[g.chrom]
+    b0, b1 = base + g.w_start // BIN, base + min(g.w_end // BIN, nb - 1)
+    g_rows.extend(range(b0, b1 + 1)); g_cols.extend([gi] * (b1 - b0 + 1))
+membership = sp.csr_matrix((np.ones(len(g_rows), dtype=np.float32), (g_rows, g_cols)), shape=(n_bins, len(genes)))
+gene_counts = (cut_bins @ membership).tocsr()
+cells[&quot;n_fragments&quot;] = overlaps.sum(axis=1).to_numpy()
+cells[&quot;n_cuts&quot;] = np.asarray(cut_bins.sum(axis=1)).ravel()
+all_depth = cells[[&quot;run&quot;, &quot;n_fragments&quot;]].copy()   # every called cell, kept for the doublet check in Cell 7
+print(f&quot;Gene accessibility matrix: {gene_counts.shape[0]:,} cells x {gene_counts.shape[1]:,} genes&quot;)</pre>
+<div class="ok"><b>Tested</b> on a simulated run of 1,800 cells and 6.7 million fragments, with chromosome names written as chr2L to check they are matched to 2L in the annotation.</div>
+
+<h2>B.6 Step 3: clusters and their names (Cell 5)</h2>
+<p>Cells are grouped into clusters by which genes are open, then each cluster is named from marker genes: <i>elav, nSyb,
+brp</i> (neurons), <i>repo</i> (glia), <i>moody, Mdr65</i> (surface glia), <i>alrm, Eaat1</i> (astrocytes), <i>Eaat2</i>
+(ensheathing glia), <i>wrapper</i> (cortex glia). Every cell is then thinned to the same number of cut sites in genes.</p>
+<p class="cellname">Cell 5 - Group cells into clusters and name them from marker genes</p><pre>#@title Cell 5 - Group cells into clusters and name them from marker genes
+from sklearn.decomposition import TruncatedSVD
+from sklearn.cluster import KMeans
+
+keep = (cells.n_fragments &gt;= MIN_FRAGMENTS) &amp; (cells.n_fragments &lt;= MAX_FRAGMENTS)
+cells = cells[keep.to_numpy()].reset_index(drop=True)
+overlaps = overlaps.loc[cells.cell_id]
+gene_counts = gene_counts[np.flatnonzero(keep.to_numpy())]
+print(f&quot;Cells with {MIN_FRAGMENTS:,}-{MAX_FRAGMENTS:,} autosomal fragments: {len(cells):,}&quot;)
+
+detected = np.asarray((gene_counts &gt; 0).mean(axis=0)).ravel()
+use = np.flatnonzero(detected &gt; 0.01)
+tf = sp.diags(1 / np.maximum(np.asarray(gene_counts[:, use].sum(axis=1)).ravel(), 1)) @ gene_counts[:, use]
+tfidf = tf.multiply(np.log1p(len(cells) / np.maximum(detected[use] * len(cells), 1))).tocsr()
+tfidf.data = np.log1p(tfidf.data * 1e4)
+svd = TruncatedSVD(n_components=30, random_state=SEED).fit_transform(tfidf)[:, 1:]
+svd = svd / np.linalg.norm(svd, axis=1, keepdims=True)
+cells[&quot;cluster&quot;] = KMeans(n_clusters=N_CLUSTERS, n_init=5, random_state=SEED).fit_predict(svd).astype(str)
+
+MARKERS = {&quot;neuron&quot;: [&quot;elav&quot;, &quot;nSyb&quot;, &quot;brp&quot;, &quot;fne&quot;], &quot;glia&quot;: [&quot;repo&quot;], &quot;surface glia&quot;: [&quot;moody&quot;, &quot;Mdr65&quot;],
+           &quot;astrocyte&quot;: [&quot;alrm&quot;, &quot;Eaat1&quot;], &quot;ensheathing glia&quot;: [&quot;Eaat2&quot;], &quot;cortex glia&quot;: [&quot;wrapper&quot;]}
+gene_pos = {g: i for i, g in enumerate(genes.gene)}
+
+# Polyploid cells have more fragments. Thin every cell to the same number of cut sites in genes
+# so that accessibility scores do not rise with depth alone.
+in_genes = np.asarray(gene_counts.sum(axis=1)).ravel()
+TARGET = int(np.quantile(in_genes, 0.1))
+thin = gene_counts.tocsr(copy=True).astype(np.int64)
+prob = np.repeat(TARGET / np.maximum(in_genes, 1), np.diff(thin.indptr))
+thin.data = rng.binomial(thin.data, np.minimum(prob, 1.0)); thin.eliminate_zeros()
+enough = in_genes &gt;= TARGET
+print(f&quot;Thinned every cell to {TARGET:,} cut sites in genes; {int((~enough).sum()):,} cells below that are left out&quot;)
+cells = cells[enough].reset_index(drop=True)
+overlaps = overlaps.loc[cells.cell_id]
+gene_counts, thin, svd = gene_counts[enough], thin[enough], svd[enough]
+logcpm = thin.astype(float); logcpm.data = np.log1p(logcpm.data)
+marker_table = {}
+for label, ms in MARKERS.items():
+    idx = [gene_pos[m] for m in ms if m in gene_pos]
+    if idx:
+        v = np.asarray(logcpm[:, idx].mean(axis=1)).ravel()
+        marker_table[label] = pd.Series(v).groupby(cells.cluster).mean()
+marker_table = pd.DataFrame(marker_table)
+z = (marker_table - marker_table.mean()) / marker_table.std()
+names = {}
+for cl, row in z.iterrows():
+    if row.get(&quot;surface glia&quot;, -9) &gt; 1.5:
+        names[cl] = &quot;surface glia&quot;
+    elif row.get(&quot;glia&quot;, -9) &gt; 0.5:
+        sub = max((&quot;astrocyte&quot;, &quot;ensheathing glia&quot;, &quot;cortex glia&quot;), key=lambda k: row.get(k, -9))
+        names[cl] = &quot;glia&quot; + (f&quot;: {sub.replace(&#x27; glia&#x27;, &#x27;&#x27;)}&quot; if row.get(sub, -9) &gt; 1 else &quot;&quot;)
+    else:
+        names[cl] = &quot;neuron&quot;
+cells[&quot;cell_type&quot;] = cells.cluster.map(names) + &quot; (c&quot; + cells.cluster + &quot;)&quot;
+summary = z.round(2).assign(name=pd.Series(names), cells=cells.cluster.value_counts())
+display(summary.sort_values(&quot;name&quot;))</pre>
+<div class="warn"><b>Why thinning matters.</b> Without it, in a simulation where only the cnc pathway was changed, every programme and every stress control looked more open in polyploid cells (up to 0.15 for controls), because polyploid cells simply have more fragments. After thinning, the controls fell to about zero.</div>
+<p><b>What you should see:</b> a table of clusters with marker scores and a name. Neurons should be the large majority, with
+several glia clusters. Surface glia may not appear, because they are few.</p>
+
+<h2>B.7 Step 4: ploidy of every cell (Cell 6)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>How many genome copies does each cell hold?</td></tr><tr><td><b>How it works</b></td><td>For each fragment, count how many fragments from the same cell cover its start. The pattern of those counts depends on the number of copies. A model fitted separately for each cluster gives each cell a probability of being 2C, 4C, 8C or 16C.</td></tr><tr><td><b>Passes when</b></td><td>Calls are clear (above 0.8) for most cells and surface glia come out polyploid (Cell 7)</td></tr><tr><td><b>What can fool it</b></td><td>Doublets: two cells captured together look like one cell with twice the DNA. Very low-depth cells: calls become uncertain.</td></tr></tbody></table>
+<p class="cellname">Cell 6 - Ploidy of every cell, from overlapping fragments</p><pre>#@title Cell 6 - Ploidy of every cell, from overlapping fragments
+GRID = np.exp(np.linspace(np.log(5e-4), np.log(0.7), 90)); LOG_GRID = np.log(GRID)
+
+
+def _log_categories(p, kappa, artefact, k):
+    t = p - 1; a, b = GRID * kappa, (1 - GRID) * kappa
+    out = np.zeros((len(GRID), k))
+    for s in range(t + 1):
+        out[:, min(s, k - 1)] += np.exp(gammaln(t + 1) - gammaln(s + 1) - gammaln(t - s + 1)
+                                        + betaln(s + a, t - s + b) - betaln(a, b))
+    out = np.maximum(out + artefact[None, :], 1e-300)
+    return np.log(out / out.sum(axis=1, keepdims=True))
+
+
+def _basis(x, knots):
+    return np.column_stack([np.ones_like(x), x] + [np.maximum(x - kn, 0) for kn in knots])
+
+
+def _e_step(C, n, weights, th, kappa):
+    lm = np.zeros((len(C), len(PLOIDIES))); ms = np.zeros_like(lm); vs = np.zeros_like(lm)
+    for j, p in enumerate(PLOIDIES):
+        lp = _log_categories(p, kappa, th[&quot;art&quot;], C.shape[1])
+        mean = _basis(np.log(2 * n / p), th[&quot;knots&quot;]) @ th[&quot;coef&quot;]
+        joint = C @ lp.T - 0.5 * ((LOG_GRID[None, :] - mean[:, None]) / th[&quot;tau&quot;]) ** 2
+        norm = logsumexp(joint, axis=1, keepdims=True); post = np.exp(joint - norm)
+        lm[:, j] = norm[:, 0]; ms[:, j] = post @ LOG_GRID; vs[:, j] = post @ LOG_GRID**2 - ms[:, j] ** 2
+    lj = lm + np.log(weights)
+    return np.exp(lj - logsumexp(lj, axis=1, keepdims=True)), ms, vs
+
+
+def fit_ploidy(C, kappa=8.0, n_iter=40):
+    C = np.asarray(C, float); n = C.sum(axis=1); k = C.shape[1]
+    rate = np.maximum((C[:, 1] + 0.5) / (C[:, 0] + 1), 1e-4)
+    knots = np.quantile(np.log(n), [0.2, 0.4, 0.6, 0.8])
+    th = {&quot;coef&quot;: np.linalg.lstsq(_basis(np.log(n), knots), np.log(rate), rcond=None)[0], &quot;knots&quot;: knots,
+          &quot;tau&quot;: 0.5, &quot;art&quot;: np.r_[0, 0, np.full(k - 2, 1e-4)]}
+    w = np.r_[0.9, np.full(len(PLOIDIES) - 1, 0.1 / (len(PLOIDIES) - 1))]
+    for _ in range(n_iter):
+        resp, ms, vs = _e_step(C, n, w, th, kappa)
+        new_w = np.maximum(resp.mean(0), 1e-5); new_w /= new_w.sum()
+        X = np.concatenate([np.log(2 * n / p) for p in PLOIDIES]); Y = ms.T.ravel()
+        W = resp.T.ravel(); V = vs.T.ravel(); B = _basis(X, knots); r = np.sqrt(W)
+        coef = np.linalg.lstsq(B * r[:, None], Y * r, rcond=None)[0]
+        tau = max(float(np.sqrt(np.average((Y - B @ coef) ** 2 + V, weights=W))), 0.05)
+        d = resp[:, 0]; art = np.r_[0, 0, np.maximum((d[:, None] * C[:, 2:]).sum(0) / max((d * n).sum(), 1), 1e-7)]
+        done = np.max(np.abs(new_w - w)) &lt; 1e-4
+        w, th = new_w, {&quot;coef&quot;: coef, &quot;knots&quot;: knots, &quot;tau&quot;: tau, &quot;art&quot;: art}
+        if done:
+            break
+    resp, ms, _ = _e_step(C, n, w, th, kappa)
+    return resp, (resp * ms).sum(1)
+
+
+for p in PLOIDIES:
+    cells[f&quot;P_{p}C&quot;] = np.nan
+for cl, part in cells.groupby(&quot;cluster&quot;):
+    resp, log_s = fit_ploidy(overlaps.loc[part.cell_id].to_numpy())
+    for j, p in enumerate(PLOIDIES):
+        cells.loc[part.index, f&quot;P_{p}C&quot;] = resp[:, j]
+    cells.loc[part.index, &quot;per_copy_log_s&quot;] = log_s
+cells[&quot;P_polyploid&quot;] = 1 - cells[&quot;P_2C&quot;]
+cells[&quot;expected_copies&quot;] = sum(cells[f&quot;P_{p}C&quot;] * p for p in PLOIDIES)
+cells[&quot;fragments_per_copy&quot;] = cells.n_fragments * 2 / cells.expected_copies
+best = cells[[f&quot;P_{p}C&quot; for p in PLOIDIES]].to_numpy()
+cells[&quot;ploidy_call&quot;] = np.where(best.max(1) &gt;= 0.8, np.array([f&quot;{p}C&quot; for p in PLOIDIES])[best.argmax(1)], &quot;uncertain&quot;)
+display(pd.crosstab(cells.cell_type, cells.ploidy_call))</pre>
+<div class="ok"><b>Tested.</b> In the simulation, surface glia simulated as 8C and 16C were called 8C or 16C; all 86 neurons simulated as 4C (including doublets) were called 4C, and no diploid neuron was called polyploid.</div>
+
+<h2>B.8 Step 5: main check, more polyploidy than doublets? (Cell 7)</h2>
+<p>Two cells captured together look exactly like one cell with twice the DNA. About 0.8% of cells per 1,000 recovered
+in a run are doublets. Two corrections matter. First, doublets have about twice the fragments, so the fragment filter
+in Cell 5 keeps them more often than single cells: when most cells are below MIN_FRAGMENTS, the kept cells can be
+several times richer in doublets than the run as a whole. Cell 7 works this out from each run's own fragment counts.
+Second, a doublet of two <i>different</i> neurons still lands in a neuron cluster, so doublets are not limited to
+same-type pairs. Each cell type's polyploid rate, with a 95% interval, is compared with the expected doublet share of
+the kept cells. Cell types whose interval sits above it have more polyploidy than doublets can explain.</p>
+<p><b>Clusters with mixed markers</b> (for example neuron markers low and glia markers high, in a cluster named
+"neuron") are often made of neuron-glia doublets. A high polyploid rate there is a warning, not a finding.</p>
+<p class="cellname">Cell 7 - Main check: more polyploidy than doublets can explain?</p><pre>#@title Cell 7 - Main check: more polyploidy than doublets can explain?
+# Two cells captured together look like one cell with twice the DNA. About 0.8% of captured cells per 1,000
+# recovered are doublets. Doublets have about twice the fragments, so the fragment filter in Cell 5 keeps them more
+# often than single cells; and a doublet of two different neurons lands in a neuron cluster. So the expected
+# doublet share is worked out for all kept cells of a run, not only for same-cluster pairs.
+expected = {}
+for run, part in all_depth.groupby(&quot;run&quot;):
+    d = part.n_fragments.to_numpy()
+    D = min(len(d) / 1000 * 0.008, 0.5)
+    pair = rng.choice(d, 20000) + rng.choice(d, 20000)
+    pass_single = np.mean((d &gt;= MIN_FRAGMENTS) &amp; (d &lt;= MAX_FRAGMENTS))
+    pass_double = np.mean((pair &gt;= MIN_FRAGMENTS) &amp; (pair &lt;= MAX_FRAGMENTS))
+    kept_share = D * pass_double / (D * pass_double + (1 - D) * pass_single)
+    expected[run] = kept_share
+    print(f&quot;{run[:45]}: {len(d):,} cells, median {np.median(d):,.0f} fragments; doublets expected &quot;
+          f&quot;{100 * D:.1f}% of all cells, {100 * kept_share:.1f}% of the cells kept by the fragment filter&quot;)
+cells[&quot;expected_doublet&quot;] = cells.run.map(expected)
+rows = []
+for ct, part in cells.groupby(&quot;cell_type&quot;):
+    boot = [part.P_polyploid.sample(len(part), replace=True, random_state=i).mean() for i in range(500)]
+    rows.append({&quot;cell_type&quot;: ct, &quot;cells&quot;: len(part), &quot;polyploid_rate&quot;: part.P_polyploid.mean(),
+                 &quot;ci_low&quot;: np.quantile(boot, 0.025), &quot;expected_doublets&quot;: part.expected_doublet.mean()})
+check = pd.DataFrame(rows).set_index(&quot;cell_type&quot;)
+check[&quot;excess&quot;] = check.polyploid_rate - check.expected_doublets
+check[&quot;clear_excess&quot;] = check.ci_low &gt; check.expected_doublets
+display(check.sort_values(&quot;polyploid_rate&quot;, ascending=False).round(3))
+overall = cells.P_polyploid.mean(); expected = cells.expected_doublet.mean()
+print(f&quot;All cells: polyploid rate {overall:.3f}, expected from doublets {expected:.3f}&quot;)
+print(f&quot;Cell types with clearly more polyploidy than doublets: {int(check.clear_excess.sum())} of {len(check)}&quot;)
+if check.clear_excess.sum() == 0:
+    print(&quot;WARNING: no cell type has more polyploidy than doublets would give. Later results cannot be trusted; &quot;
+          &quot;use deeper runs, older flies, or doublet-removed data.&quot;)
+surface = cells.cell_type.str.startswith(&quot;surface glia&quot;)
+if surface.any():
+    print(f&quot;Bonus check: surface glia polyploid rate {cells.P_polyploid[surface].mean():.2f} &quot;
+          f&quot;(expected high), other cells {cells.P_polyploid[~surface].mean():.2f}&quot;)
+else:
+    print(&quot;No surface glia cluster (expected: they are very few). The doublet check above is the main test.&quot;)</pre>
+<div class="ok"><b>Tested.</b> Simulation with polyploid neurons, astrocytes, cortex glia and surface glia: 9 of 12 cell types showed a clear excess over the expected doublet rate; surface glia came out at 1.00 against 0.08 for other cells.</div>
+<table class=""><thead><tr><th>What you see</th><th>What it means</th></tr></thead><tbody><tr><td><b>Several cell types with clear excess (optic-lobe neurons, cortex or astrocyte-like glia)</b></td><td>Ploidy calls are picking up real polyploidy; carry on</td></tr><tr><td><b>WARNING: no cell type has more polyploidy than doublets</b></td><td>Stop. Results from Cell 10 on cannot be trusted. Use runs with optic lobes and older flies</td></tr><tr><td><b>Surface glia present and high</b></td><td>Bonus confirmation</td></tr><tr><td><b>A single neuron cluster with very high polyploidy</b></td><td>Real, or a cluster formed by high-depth cells. Check it has a clear excess and compare with the paper's cell types</td></tr></tbody></table>
+
+<h2>B.9 Gene programmes and tools (Cells 8-9)</h2>
+<p>Gene names are FlyBase symbols. Besides the redox programmes and stress controls, two <b>explore</b> sets come from the
+fly papers: licensing and cell-cycle re-entry (Gem, dup, Cdc6, Orc1, Mcm2-7 with dpa as Mcm4, CycE, E2f1, Myc, CycD) and the
+p53 head DNA damage response (Ku80, Irbp, Cht8, CG3344, CG4734, Fanci, lok, rad50, Xrp1, p53), reported to rise in aged
+optic lobes. Cell 8 prints how many genes of each programme were found in the annotation;
+programmes with fewer than 4 are dropped. It also says if Gem or dup are missing, which would mean a different symbol in
+your annotation.</p>
+<p class="cellname">Cell 8 - Gene programmes (fly gene symbols)</p><pre>#@title Cell 8 - Gene programmes (fly gene symbols)
+PROGRAMMES = {
+    &quot;REDOX: cnc (NRF2) pathway&quot;: &quot;cnc Keap1 Gclc Gclm GstD1 GstD2 GstE1 GstS1 Zw Pgd Men&quot;,
+    &quot;REDOX: thioredoxin/peroxiredoxin&quot;: &quot;Trxr-1 Trxr-2 Trx-2 Jafrac1 Jafrac2 Prx3 Prx5 PHGPx&quot;,
+    &quot;REDOX: antioxidant enzymes&quot;: &quot;Sod1 Sod2 Cat Eip71CD SelR Ogg1&quot;,
+    &quot;REDOX: iron&quot;: &quot;Fer1HCH Fer2LCH Irp1A Tsf1 Mvl&quot;,
+    &quot;REDOX: mitochondrial respiration&quot;: &quot;ND-75 ND-49 ND-30 ND-42 SdhA SdhB UQCR-C1 UQCR-C2 Cyt-c-p COX4 COX5A ATPsynbeta blw&quot;,
+    &quot;EXPLORE: licensing and cell cycle re-entry&quot;: &quot;geminin dup Cdc6 Orc1 Mcm2 Mcm3 dpa Mcm5 Mcm6 Mcm7 CycE E2f1 Myc CycD&quot;,
+    &quot;EXPLORE: p53 head DNA damage response&quot;: &quot;Ku80 Irbp Cht8 CG3344 CG4734 Fanci lok rad50 Xrp1 p53&quot;,
+    &quot;CONTROL: unfolded protein response&quot;: &quot;Hsc70-3 Xbp1 crc PEK Ire1 Atf6 Pdi ERp60 Calr&quot;,
+    &quot;CONTROL: heat shock&quot;: &quot;Hsp70Aa Hsp83 Hsp68 Hsp27 Hsp26 Hsc70-4 DnaJ-1 Hsf&quot;,
+    &quot;CONTROL: DNA damage&quot;: &quot;p53 mei-41 tefu lok spn-A mus304 Xrp1 rpr hid&quot;,
+    &quot;CONTROL: immediate-early genes&quot;: &quot;Hr38 sr kay Jra puc CrebA&quot;,
+}
+# Some genes are listed under a different name in the annotation, so each one is looked up under its synonyms too.
+# FlyBase calls Geminin &quot;geminin&quot; (CG3183); &quot;Gem&quot; is only a synonym, which is why earlier runs could not find it.
+ALIASES = {&quot;geminin&quot;: [&quot;Gem&quot;, &quot;CG3183&quot;], &quot;dup&quot;: [&quot;Cdt1&quot;], &quot;dpa&quot;: [&quot;Mcm4&quot;], &quot;Zw&quot;: [&quot;G6PD&quot;, &quot;G6pd&quot;],
+           &quot;Ero1L&quot;: [&quot;Ero1&quot;, &quot;CG1333&quot;], &quot;PHGPx&quot;: [&quot;CG12013&quot;], &quot;Gss1&quot;: [&quot;Gss&quot;], &quot;Gr1&quot;: [&quot;Gr&quot;, &quot;GR&quot;],
+           &quot;Trxr-1&quot;: [&quot;Trxr1&quot;], &quot;Jafrac1&quot;: [&quot;Prx2&quot;], &quot;Men-b&quot;: [&quot;Men-b&quot;, &quot;CG5889&quot;]}
+
+
+def resolve(g, present):
+    if g in present:
+        return g
+    for a in ALIASES.get(g, []):
+        if a in present:
+            return a
+    return None
+
+
+_renamed, _resolved = {}, {}
+for n, v in PROGRAMMES.items():
+    out = []
+    for g in v.split():
+        r = resolve(g, gene_pos)
+        if r:
+            out.append(r)
+            if r != g:
+                _renamed[g] = r
+    _resolved[n] = out
+PROGRAMMES = _resolved
+if _renamed:
+    print(&quot;Found under a synonym:&quot;, &quot;, &quot;.join(f&quot;{k} -&gt; {v}&quot; for k, v in _renamed.items()))
+for n, v in PROGRAMMES.items():
+    print(f&quot;{n}: {len(v)} genes found&quot;)
+PROGRAMMES = {n: v for n, v in PROGRAMMES.items() if len(v) &gt;= 4}
+missing_goi = [g for g in GOI if g not in gene_pos]
+if missing_goi:
+    print(&quot;Genes of interest not found in the annotation (check FlyBase symbols):&quot;, missing_goi)
+GOI = [g for g in GOI if g in gene_pos]</pre>
+<p class="cellname">Cell 9 - Scores and tools</p><pre>#@title Cell 9 - Scores and tools
+lognorm = logcpm.tocsc()
+
+
+def gene_z(idx):
+    &quot;&quot;&quot;Per-gene accessibility (log CPM), z-scored within cluster.&quot;&quot;&quot;
+    m = np.asarray(lognorm[:, idx].todense(), float)
+    out = np.empty_like(m)
+    for cl in cells.cluster.unique():
+        r = (cells.cluster == cl).to_numpy()
+        sd = m[r].std(0); out[r] = (m[r] - m[r].mean(0)) / np.where(sd &gt; 0, sd, 1)
+    return out
+
+
+def programme_score(gs):
+    return gene_z([gene_pos[g] for g in gs]).mean(1)
+
+
+scores = pd.DataFrame({n: programme_score(v) for n, v in PROGRAMMES.items()})
+lfpc = np.log(cells.fragments_per_copy.to_numpy()); lfpc = (lfpc - lfpc.mean()) / lfpc.std()
+dummies = pd.get_dummies(cells.cluster + &quot;|&quot; + cells.run).astype(float).to_numpy()
+basis, _ = np.linalg.qr(np.column_stack([dummies, lfpc, lfpc**2]))
+strata = (cells.cluster + &quot;|&quot; + cells.run).to_numpy()
+
+
+def residual(v):
+    v = np.asarray(v, float); return v - basis @ (basis.T @ v)
+
+
+def corr(a, b):
+    a, b = a - a.mean(0), b - b.mean(0)
+    return (a * b).sum(0) / np.sqrt((a**2).sum(0) * (b**2).sum(0))
+
+
+def perm_p(obs, null):
+    return (1 + np.sum(np.abs(null) &gt;= abs(obs))) / (len(null) + 1)
+
+
+def fdr(p):
+    p = np.asarray(p, float); o = np.argsort(p); a = p[o] * len(p) / np.arange(1, len(p) + 1)
+    out = np.empty_like(p); out[o] = np.minimum(np.minimum.accumulate(a[::-1])[::-1], 1); return out
+
+
+x = residual(cells.P_polyploid.to_numpy())
+xs = np.tile(cells.P_polyploid.to_numpy()[:, None], (1, N_PERMUTATIONS))
+for s in np.unique(strata):
+    idx = np.flatnonzero(strata == s)
+    for j in range(N_PERMUTATIONS):
+        xs[idx, j] = xs[rng.permutation(idx), j]
+xs = residual(xs)
+print(&quot;Tools ready.&quot;)</pre>
+<p>A programme's score is the average, over its genes, of each gene's accessibility z-scored within cluster. Tests remove
+cluster, run and fragments per genome copy before correlating.</p>
+
+<h2>B.10 Screens 1-3: programmes vs ploidy (Cell 10)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Are redox genes more or less open in polyploid cells than in diploid cells of the same type?</td></tr><tr><td><b>How it works</b></td><td>Screen 1: partial correlation of each programme score with P(polyploid), p-value from shuffling P(polyploid) within cluster and run. Screen 2: 500 random gene sets matched on accessibility. Screen 3: redox minus each stress control.</td></tr><tr><td><b>Passes when</b></td><td>q below 0.05, p_vs_random below 0.05 and p_vs_controls below 0.05</td></tr><tr><td><b>What can fool it</b></td><td>Cells, not animals, are the unit here, so p-values are optimistic. Results from one run need a second run, or your own experiments, to count.</td></tr></tbody></table>
+<p class="cellname">Cell 10 - Screens 1-3: programmes vs ploidy, random genes, stress controls</p><pre>#@title Cell 10 - Screens 1-3: programmes vs ploidy, random genes, stress controls
+rows = []
+for n in scores.columns:
+    r = residual(scores[n].to_numpy())
+    rho = float(corr(x[:, None], r[:, None])[0])
+    rows.append({&quot;programme&quot;: n, &quot;genes&quot;: len(PROGRAMMES[n]), &quot;partial_rho&quot;: rho,
+                 &quot;p_perm&quot;: perm_p(rho, corr(xs, np.repeat(r[:, None], xs.shape[1], 1)))})
+result = pd.DataFrame(rows)
+for family in (&quot;REDOX&quot;, &quot;EXPLORE&quot;):
+    m = result.programme.str.startswith(family)
+    if m.any():
+        result.loc[m, &quot;q_fdr&quot;] = fdr(result.loc[m, &quot;p_perm&quot;])
+
+level = np.asarray(lognorm.mean(axis=0)).ravel()
+ok = np.flatnonzero(level &gt; 0)
+bins = pd.qcut(pd.Series(level[ok]).rank(method=&quot;first&quot;), 20, labels=False).to_numpy()
+bin_of = dict(zip(ok, bins))
+avoid = {gene_pos[g] for v in PROGRAMMES.values() for g in v}
+by_bin = {b: [g for g, bb in zip(ok, bins) if bb == b and g not in avoid] for b in range(20)}
+for n in [n for n in scores.columns if n.startswith((&quot;REDOX&quot;, &quot;EXPLORE&quot;))]:
+    idx = [gene_pos[g] for g in PROGRAMMES[n]]
+    null = [corr(x[:, None], residual(gene_z([rng.choice(by_bin[bin_of.get(i, 0)]) for i in idx]).mean(1))[:, None])[0]
+            for _ in range(N_RANDOM_SETS)]
+    i = result.programme == n
+    result.loc[i, &quot;random_low&quot;], result.loc[i, &quot;random_high&quot;] = np.quantile(null, [0.025, 0.975])
+    result.loc[i, &quot;p_vs_random&quot;] = perm_p(result.loc[i, &quot;partial_rho&quot;].iloc[0], np.array(null))
+
+controls = [n for n in scores.columns if n.startswith(&quot;CONTROL&quot;)]
+for n in [n for n in scores.columns if n.startswith((&quot;REDOX&quot;, &quot;EXPLORE&quot;))]:
+    i = result.programme == n; rho = result.loc[i, &quot;partial_rho&quot;].iloc[0]; worst, which = 0.0, &quot;&quot;
+    for c in controls:
+        r = residual(scores[n].to_numpy() - scores[c].to_numpy())
+        obs = float(corr(x[:, None], r[:, None])[0])
+        p = 1.0 if np.sign(obs) != np.sign(rho) else perm_p(obs, corr(xs, np.repeat(r[:, None], xs.shape[1], 1)))
+        if p &gt;= worst:
+            worst, which = p, c.replace(&quot;CONTROL: &quot;, &quot;&quot;)
+    result.loc[i, &quot;p_vs_controls&quot;], result.loc[i, &quot;closest_control&quot;] = worst, which
+display(result.round(3))
+passes = (result.q_fdr &lt; FDR_MAX) &amp; (result.p_vs_random &lt; RANDOM_P_MAX) &amp; (result.p_vs_controls &lt; CONTROL_P_MAX)
+result[&quot;verdict&quot;] = np.where(result.programme.str.startswith(&quot;CONTROL&quot;), &quot;(control)&quot;,
+                    np.where(passes, np.where(result.partial_rho &gt; 0, &quot;passes: more open in polyploid cells&quot;,
+                                              &quot;passes: less open in polyploid cells&quot;),
+                    np.where(result.q_fdr &lt; FDR_MAX, &quot;not specific&quot;, &quot;no link&quot;)))
+print()
+for _, r in result[~result.programme.str.startswith(&quot;CONTROL&quot;)].iterrows():
+    print(f&quot;{r.programme}: {r.verdict} (partial rho {r.partial_rho:+.3f})&quot;)</pre>
+<div class="ok"><b>Tested.</b> Simulation with the cnc pathway and the licensing set opened in polyploid cells: both passed all three screens (partial rho 0.20 and 0.28); nothing else did. Four simulations with no effect: no programme passed all three screens.</div>
+<div class="warn"><b>A small built-in lean.</b> In the no-effect simulations every programme, controls included, was slightly more open in polyploid cells (about +0.03, up to +0.10 by chance). Each genome copy can only give so many fragments at a strongly open gene, so extra copies shift reads towards the most open genes. Random gene sets lean the same way, which is why a result must beat them (Screen 2) and the controls (Screen 3).</div>
+<p>Cell 10 ends with one line per programme: <i>passes</i> (with direction), <i>not specific</i> (Screen 1 only) or <i>no link</i>.</p>
+
+<h2>B.11 Screen 4: gene by gene, Geminin and dup (Cell 11)</h2>
+<table class="glance"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><b>Question</b></td><td>Which single genes open or close with ploidy, and what about Gem and dup?</td></tr><tr><td><b>How it works</b></td><td>Each programme gene and gene of interest tested on its own; false discovery rate across all genes tested.</td></tr><tr><td><b>Passes when</b></td><td>q below 0.05</td></tr><tr><td><b>What can fool it</b></td><td>Single genes are noisy in ATAC data; not checked against random genes.</td></tr></tbody></table>
+<p class="cellname">Cell 11 - Screen 4: gene by gene, including Geminin and dup</p><pre>#@title Cell 11 - Screen 4: gene by gene, including Geminin and dup
+tested = list(dict.fromkeys([g for v in PROGRAMMES.values() for g in v] + GOI))
+Z = np.column_stack([residual(col) for col in gene_z([gene_pos[g] for g in tested]).T])
+Zs = (Z - Z.mean(0)) / np.where(Z.std(0) &gt; 0, Z.std(0), 1)
+xz = (x - x.mean()) / x.std(); xsz = (xs - xs.mean(0)) / xs.std(0)
+rho = xz @ Zs / len(xz); null = xsz.T @ Zs / len(xz)
+genes_result = pd.DataFrame({&quot;gene&quot;: tested, &quot;partial_rho&quot;: rho,
+                             &quot;p_perm&quot;: (1 + (np.abs(null) &gt;= np.abs(rho)).sum(0)) / (null.shape[0] + 1)})
+genes_result[&quot;q_fdr&quot;] = fdr(genes_result.p_perm)
+genes_result[&quot;group&quot;] = [&quot;, &quot;.join(n.split(&quot;: &quot;)[1] for n, v in PROGRAMMES.items() if g in v) or &quot;gene of interest&quot;
+                         for g in tested]
+genes_result = genes_result.assign(_a=genes_result.partial_rho.abs()).sort_values([&quot;p_perm&quot;, &quot;_a&quot;], ascending=[True, False]).drop(columns=&quot;_a&quot;)
+display(genes_result.head(15).round(3))
+display(genes_result[genes_result.gene.isin(GOI)].round(3))</pre>
+<div class="ok"><b>Tested.</b> Planted simulation (licensing set opened): Cdc6 0.19 and Gem 0.14 passed (q = 0.017); Orc1 0.08 and dup did not. No-effect simulation: none of the four passed.</div>
+<p><b>How to read Gem and dup:</b> more open in polyploid cells would fit active licensing or re-replication; less open would
+fit a switched-off licensing system after the cells stopped endocycling. Either is a lead to test with RNA or staining.</p>
+
+<h2>B.12 Per cell type, charts and saving (Cell 12)</h2>
+<p class="cellname">Cell 12 - Per cell type, charts and saving</p><pre>#@title Cell 12 - Per cell type, charts and saving
+per_type = []
+for ct, part in cells.groupby(&quot;cell_type&quot;):
+    m = (cells.cell_type == ct).to_numpy()
+    if m.sum() &lt; 100 or cells.P_polyploid[m].std() &lt; 0.02:
+        continue
+    for n in scores.columns:
+        per_type.append({&quot;cell_type&quot;: ct, &quot;programme&quot;: n, &quot;cells&quot;: int(m.sum()),
+                         &quot;partial_rho&quot;: float(corr(x[m, None], residual(scores[n].to_numpy())[m, None])[0])})
+per_type = pd.DataFrame(per_type)
+if not per_type.empty:
+    display(per_type.pivot(index=&quot;programme&quot;, columns=&quot;cell_type&quot;, values=&quot;partial_rho&quot;).round(2))
+
+fig, ax = plt.subplots(figsize=(7, 4.5))
+order = cells.groupby(&quot;cell_type&quot;).P_polyploid.mean().sort_values()
+ax.barh(order.index, order.values, color=[&quot;#c26a2e&quot; if s.startswith(&quot;surface&quot;) else &quot;#3b6ea8&quot; for s in order.index])
+ax.set_xlabel(&quot;Mean probability of being polyploid&quot;); ax.set_title(&quot;Polyploidy by cell type&quot;, loc=&quot;left&quot;)
+plt.tight_layout(); plt.savefig(os.path.join(DATA_DIR, &quot;chart_ploidy_by_type.png&quot;), dpi=150); plt.show()
+
+for name, frame in {&quot;route_b_cells.csv&quot;: cells, &quot;route_b_programmes.csv&quot;: result, &quot;route_b_genes.csv&quot;: genes_result,
+                    &quot;route_b_per_type.csv&quot;: per_type}.items():
+    frame.to_csv(os.path.join(DATA_DIR, name), index=False)
+print(&quot;Saved results to&quot;, DATA_DIR)</pre>
+<p>The table shows the correlation separately for each cluster with enough polyploid cells. A real effect should point the
+same way in several clusters. The chart shows mean P(polyploid) per cell type, surface glia in orange. Four tables are
+saved to your Drive folder.</p>
+
+<h2>B.13 Next: test it directly in flies</h2>
+<p>ATAC data can only suggest a redox difference. The FlyPer lines (van Leeuwen, Aldaz Casanova et al. 2026) express the
+H<sub>2</sub>O<sub>2</sub> sensor HyPer7 in the nucleus, mitochondria, cytosol or plasma membrane under UAS control. Because the sensor
+reads out a ratio, more sensor in a larger polyploid cell should not change the reading. A direct test: nuclear or
+mitochondrial FlyPer with nSyb-GAL4 or repo-GAL4; image optic lobes at 14-21 days; score each nucleus for size or DAPI
+intensity and HyPer7 ratio; compare with Geminin RNAi (more polyploidy) and paraquat (more oxidative stress).</p>
+
+<h2>B.14 Results summary for your supervisors</h2>
+<table class="summary"><thead><tr><th>Item</th><th>Your result</th></tr></thead><tbody><tr><td><b>Runs used (tissue, fly age); cells called; cells analysed</b></td><td></td></tr><tr><td><b>Cell types with clear excess polyploidy over expected doublets</b></td><td></td></tr><tr><td><b>Surface glia, if present: polyploid rate</b></td><td></td></tr><tr><td><b>Licensing and p53 explore sets: verdicts</b></td><td></td></tr><tr><td><b>Screens 1-3: any redox programme passing, with direction</b></td><td></td></tr><tr><td><b>Screen 4: top genes; Gem, dup, Cdc6, Orc1 partial rho and q</b></td><td></td></tr><tr><td><b>Per cell type: does any effect agree across clusters?</b></td><td></td></tr><tr><td><b>Leads to test by RNA, staining or genetics in flies</b></td><td></td></tr></tbody></table>
+
+<h2>B.15 Troubleshooting</h2>
+<table class=""><thead><tr><th>What happens</th><th>Likely cause</th><th>What to do</th></tr></thead><tbody><tr><td><b>Cell 2: MISSING ...</b></td><td>Folder or file name differs</td><td>Folder names must match RUNS; the GTF must be renamed or GTF_FILE changed</td></tr><tr><td><b>Cell 4 crashes / out of memory</b></td><td>Large run</td><td>Runtime &rarr; Change runtime type &rarr; High-RAM if available; or use one run at a time</td></tr><tr><td><b>Cell 4 reports 0 autosomal fragments</b></td><td>Barcodes in singlecell.csv do not match the fragments file</td><td>Send me the first lines of both files</td></tr><tr><td><b>Cell 5: no surface glia</b></td><td>They are very few</td><td>Normal; Cell 7's doublet check is the main test. N_CLUSTERS = 30 may separate them</td></tr><tr><td><b>Cell 8: few genes found</b></td><td>Different gene symbols in the annotation</td><td>Send me the printed list; symbols change between FlyBase releases</td></tr><tr><td><b>Cell 7: no cell type above the doublet rate</b></td><td>Young flies or no optic lobes</td><td>Use runs with optic lobes and older flies; send me the Cell 7 table</td></tr></tbody></table>
+
+<h2>B.16 What I tested and what I did not</h2>
+<div class="warn"><b>Tested on simulated data:</b> all 12 cells, on fragment, singlecell.csv and GTF files built in the Cell Ranger and Ensembl formats: runs with polyploid surface glia, 4C neurons and glia, doublets and mapping artefacts, once with the cnc pathway and licensing set opened in polyploid cells and four times with no effect. <b>Not tested:</b> the real Aerts lab files, real cluster structure, and the Drive connection. <b>Not verified:</b> the fly gene lists, written from FlyBase symbols as I know them; Cell 8 reports what was found. Cells are the unit of analysis here, so p-values are optimistic; confirm any lead in a second run or in your own experiments.</div>
+
+<h2>B.17 References</h2>
+<ul class="small">
+<li>Nandakumar S, Grushko O, Buttitta LA (2020). Polyploidy in the adult Drosophila brain. eLife 9:e54385.</li>
+<li>van Leeuwen LAG, Aldaz Casanova S, et al. (2026). Mapping subcellular H<sub>2</sub>O<sub>2</sub> dynamics reveals tissue specific redox patterns in Drosophila. bioRxiv 2026.08.21.745691 (preprint, not peer reviewed).</li>
+<li>Shu Z, Row S, Deng W-M (2018). Endoreplication: the good, the bad, and the ugly. Trends in Cell Biology.</li>
+<li>Janssens J, et al. (2022). Decoding gene regulation in the fly brain. Nature 601:630-636. Data: flybrain.aertslab.org.</li>
+</ul>
+</body></html>
