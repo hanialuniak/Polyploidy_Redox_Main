@@ -54,6 +54,7 @@ rather than produce a result.
 | route_c_rat_liver | `ROUTE_CR_DATA`, `ROUTE_CR_GEO` |
 | route_d_salivary | `ROUTE_D_DATA`, `ROUTE_D_GEO`, `ROUTE_D_GTF` |
 | route_e_ovary | `ROUTE_E_DATA`, `ROUTE_E_GEO`, `ROUTE_E_EBI`, `ROUTE_E_GTF` |
+| route_f_embryo_sg | `ROUTE_F_DATA`, `ROUTE_F_GEO`, `ROUTE_F_EBI`, `ROUTE_F_GTF` |
 
 ## Rebuilding the PDF guides
 
