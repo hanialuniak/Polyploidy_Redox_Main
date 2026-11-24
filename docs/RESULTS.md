@@ -12,11 +12,17 @@ machinery rises sharply at the mitotic-to-endocycle switch — including `Ero1L`
 one H₂O₂ per disulfide — while `Jafrac1` (cytosolic peroxiredoxin) and `Gclc` (glutathione
 synthesis) fall, and `Jafrac2` (the ER peroxiredoxin) stays flat.
 
-The second is newer and rests on the cleanest design available. **In S2 cells pushed into
-endocycles, where cell identity is held constant, cytosolic peroxiredoxin capacity falls**
-(−0.45, 6.8th percentile, p = 0.009 with Myb knockdown; −0.38 with CycA) **while `Duox` rises**
-(98th and 84th percentile). The peroxiredoxin direction agrees with the fly ovary, so three
-systems now point the same way: cells entering an endocycle carry less cytosolic peroxiredoxin.
+The second is newer. **`Jafrac1`, the cytosolic peroxiredoxin, falls in all four
+mitotic-to-endocycle comparisons available**: −0.27 and −0.27 in S2 cells pushed into endocycles
+by CycA or Myb knockdown, −1.06 (2nd percentile) in the Rust ovary atlas and −0.43 (18th) in
+Jevitt. S2 cells are the clean case, because identity is held constant. In the same S2
+comparison the cytosolic removal class as a whole falls (−0.45, 6.8th percentile, p = 0.009 with
+Myb) and `Duox` rises to the 98th percentile.
+
+**That class-level claim does not generalise, and `Jafrac1` alone should be quoted.** The class
+falls in three of four comparisons but rises in Jevitt (+0.68), because `Prx2540-1` (+0.95) and
+`Prx2540-2` (+0.83) move opposite to the way they move in S2 (−0.51/−0.48 and −0.48/−0.65);
+neither was detected in Rust.
 
 Neither lead is a transcriptional antioxidant response, which is why eight gene-set screens
 returned nothing. Taken with the speed of the HyPer7 signal, the nulls argue that the regulation
@@ -279,6 +285,37 @@ in that system raises the probe's basal ratio without any change in H₂O₂. Th
 in direction but modest in size, which **weakens that confound without eliminating it** — it is
 unlikely to account for a large HyPer7 rise on its own. The bolus-and-recovery control is still
 needed to separate the two.
+
+### Compartment-resolved screen, both atlases
+
+| | Rust GSE136162 | Jevitt GSE146040 |
+| --- | --- | --- |
+| ER folding load | +0.76, **94th pct**, p = 0.001 | +1.48, **~97th pct** |
+| `Ero1L` (makes one H₂O₂ per disulfide) | +0.50, 87th | +0.53, 82nd |
+| **`Jafrac2`** (ER peroxiredoxin) | **+0.08, 56th** | **+0.04, 54th** |
+| `Trx-2` | −0.27, 23rd | −0.42, 19th |
+| `Trxr-1` | −0.25, 24th | −0.18, 35th |
+| **`Rrp1`** (fly APEX1) | **−2.04, 0.4th pct** | **−1.73, 0.6th pct** |
+| `Prx3` (mitochondrial) | −0.37, 16th | −0.14, 38th |
+| `Sod2` | −0.22, 26th | −0.44, 17th |
+| `Cat` | −0.28, 22nd | +0.58, 83rd |
+
+- **The ER imbalance replicates.** `Jafrac2` sits at the 56th and 54th percentile — the middle of
+  the genome — while the folding machinery it serves is in the top 3–6% (`Sec61beta` +1.59 and
+  +2.36, `Hsc70-3` +1.16 and +2.21). Since the salivary gland *does* scale `Jafrac2` up with its
+  load, this failure to scale is specific to the switch, not to secretory cells.
+- **`Rrp1` is the most extreme consistent change anywhere in the project:** bottom 0.5% of all
+  genes in both atlases, and consistent across all three Rust libraries (−2.34, −1.82, −1.97).
+  It also falls hard in the salivary gland (−2.49). Caveat: this is a replication-coupled repair
+  enzyme and every one of these comparisons involves cells leaving the mitotic cycle, so
+  proliferation is the obvious confound. Against that, S2 cells also leave the mitotic cycle and
+  `Rrp1` barely moves there (−0.85 with CycA, −0.01 with Myb). Worth checking whether the
+  Ref-1 redox-activating function of human APEX1 (which depends on Cys65) is conserved in
+  *Drosophila* Rrp1 before reading anything redox into it — in many invertebrates it is not.
+- **The thioredoxin arm falls consistently but weakly** in both, as the enzyme-by-enzyme table
+  above records.
+- `Su(var)3-3` was not detected in either atlas, so the nuclear-source question is untestable in
+  ovary. It was testable in Route D, where it failed.
 
 **Cross-reference to Route D:** the `Jafrac1` fall here is the same direction as the significant
 fall in cytosolic peroxiredoxins when S2 cells are pushed into endocycles, which is the one
