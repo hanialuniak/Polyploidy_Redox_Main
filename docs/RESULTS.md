@@ -1,14 +1,26 @@
 # Results
 
-Last updated: 23 November 2026.
+Last updated: 24 November 2026.
 
 ## Summary
 
-No redox programme tracks polyploidy in any dataset tested. The association that recurs is
-with DNA damage and p53. The one mechanistic lead comes from the fly ovary, where the ER
-protein-folding machinery rises at the mitotic-to-endocycle switch — including `Ero1L`, which
-generates H₂O₂ — while two enzymes that remove H₂O₂ or supply glutathione fall. That pattern
-would raise H₂O₂ without ever appearing as an antioxidant response in a gene set.
+No redox *programme* tracks polyploidy in any dataset tested, and four working positive controls
+say the tests would have found one. The association that recurs instead is DNA damage and p53.
+
+Two mechanistic leads survive. The first is from the fly ovary, where the ER protein-folding
+machinery rises sharply at the mitotic-to-endocycle switch — including `Ero1L`, which generates
+one H₂O₂ per disulfide — while `Jafrac1` (cytosolic peroxiredoxin) and `Gclc` (glutathione
+synthesis) fall, and `Jafrac2` (the ER peroxiredoxin) stays flat.
+
+The second is newer and rests on the cleanest design available. **In S2 cells pushed into
+endocycles, where cell identity is held constant, cytosolic peroxiredoxin capacity falls**
+(−0.45, 6.8th percentile, p = 0.009 with Myb knockdown; −0.38 with CycA) **while `Duox` rises**
+(98th and 84th percentile). The peroxiredoxin direction agrees with the fly ovary, so three
+systems now point the same way: cells entering an endocycle carry less cytosolic peroxiredoxin.
+
+Neither lead is a transcriptional antioxidant response, which is why eight gene-set screens
+returned nothing. Taken with the speed of the HyPer7 signal, the nulls argue that the regulation
+is post-translational rather than transcriptional — a constraint on the mechanism, not a failure.
 
 ## Route A — human cancer cell lines (DepMap)
 
@@ -142,7 +154,63 @@ Cyclin A or Myb knockdown versus GFP control, three replicates each.
   −0.45) and ribosome genes (−0.19) fall in both.
 - GSTs, NADPH supply and SOD/catalase fall with Myb knockdown only.
 
-**Conclusion:** the salivary gland pattern reflects secretory workload, not ploidy.
+### Compartment-resolved screen across both datasets
+
+The pooled sets average enzymes that work in different places, which hides where H₂O₂ is
+handled. Splitting every redox gene by compartment, and adding the nucleus, changes the reading
+of Route D. Percentiles are among all expressed genes, so a library-wide drift cannot
+manufacture a result.
+
+**Confirms the workload conclusion, compartment by compartment.** Everything that rises in the
+gland is flat or falling when endocycles are induced without a change of identity:
+
+| | Salivary gland | CycA KD | Myb KD |
+| --- | --- | --- | --- |
+| ER folding load | +1.64 (87th pct, p = 0.013) | +0.04 (54th) | −0.11 (34th) |
+| `Ero1L` | +1.62 (87th) | −0.24 (28th) | −0.33 (12th) |
+| `Jafrac2` (ER peroxiredoxin) | +0.86 (73rd) | −0.46 (14th) | −0.07 (38th) |
+| Catalase | +3.16 (95th) | −0.04 (46th) | −0.31 (13th) |
+| Glutathione supply | +2.22 (92nd) | −0.01 (49th) | −0.06 (40th) |
+
+Note that `Jafrac2` *does* track folding load in the gland. The failure to track it in the ovary
+is therefore specific to the mitotic-to-endocycle switch, not a general property of fly
+secretory cells.
+
+**New result, and the first redox finding that survives the identity control: cytosolic
+peroxiredoxins fall on entering an endocycle.**
+
+| Cytosolic H₂O₂ removal | log2 | percentile | p vs random |
+| --- | --- | --- | --- |
+| Myb knockdown | **−0.45** | **6.8th** | **0.009** |
+| CycA knockdown | −0.38 | 19th | 0.102 |
+
+Consistent gene by gene in both knockdowns: `Jafrac1` −0.27 / −0.27, `Prx2540-1` −0.51 / −0.48,
+`Prx2540-2` −0.48 / −0.65. The direction matches Route E, where `Jafrac1` falls at the switch
+(−1.06 and −0.43). **Three systems, same direction**, and S2 cells are the clean one because
+identity is held constant.
+
+`Duox` moves the other way: **+0.52 (84th pct) with CycA and +1.11 (98th pct) with Myb**,
+against −2.99 in the gland. So in induced endocycles a source rises while cytosolic sinks fall —
+the imbalance pattern, for the first time in a design where ploidy rather than tissue identity
+is the variable. Caveats: `Duox` is a single gene, `Nox` was not detected, two of the four
+cytosolic removal genes are the less-characterised `Prx2540` pair, and Myb knockdown has the
+weaker positive control (mitotic genes −0.60 against CycA's −1.44).
+
+**The thioredoxin system does not compensate.** In the gland it is the only removal class that
+does not rise (65th percentile, against 86th–95th for catalase, peroxiredoxins, glutathione and
+mitochondrial `Prx3`). In S2 iECs it is flat to down (−0.01, −0.21). Since HyPer7 is reduced by
+the thioredoxin system, falling peroxiredoxin capacity and unchanged Trx capacity push a HyPer7
+ratio the same way, and brightness alone cannot separate them — bolus-and-recovery kinetics can.
+
+**No support for a nuclear H₂O₂ source.** `Su(var)3-3` (fly LSD1, FAD-dependent demethylase,
+one H₂O₂ per demethylation) falls in the gland (29th pct) and in both knockdowns (16th, 33rd).
+`Rrp1` (fly APEX1) is −2.49 in the gland but −0.85 and −0.01 in the knockdowns, so the gland
+value is proliferation, not redox. `dhd` and `TrxT` were not detected, as expected for germline
+and testis thioredoxins, so the nuclear thioredoxin arm remains untested.
+
+**Conclusion:** the salivary gland pattern reflects secretory workload, not ploidy. What does
+track endocycling, in the design that controls for identity, is a **fall in cytosolic
+peroxiredoxin capacity** alongside a rise in `Duox`.
 
 ## Route E — fly ovary follicle cells
 
@@ -211,6 +279,11 @@ in that system raises the probe's basal ratio without any change in H₂O₂. Th
 in direction but modest in size, which **weakens that confound without eliminating it** — it is
 unlikely to account for a large HyPer7 rise on its own. The bolus-and-recovery control is still
 needed to separate the two.
+
+**Cross-reference to Route D:** the `Jafrac1` fall here is the same direction as the significant
+fall in cytosolic peroxiredoxins when S2 cells are pushed into endocycles, which is the one
+comparison that holds cell identity constant. `Jafrac2` behaves differently in the two systems:
+flat here, rising with folding load in the salivary gland.
 
 **Caveat:** in this lineage ploidy and developmental stage rise together, so this is
 endocycling versus mitotic, not ploidy alone.
