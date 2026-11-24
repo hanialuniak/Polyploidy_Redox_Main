@@ -6,9 +6,9 @@ authors:
   - family-names: Luniak
     given-names: Hanna
     affiliation: "Babraham Institute, University of Cambridge"
-repository-code: "https://github.com/USERNAME/polyploidy-redox"
+repository-code: "https://github.com/hanialuniak/Polyploidy_Redox_Main"
 license: MIT
-date-released: 2026-11-23
+date-released: 2026-11-24
 keywords:
   - polyploidy
   - endoreplication

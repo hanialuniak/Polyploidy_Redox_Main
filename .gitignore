@@ -1,0 +1,32 @@
+# Data: never committed. Notebooks download or you place these yourself.
+data/
+*.tar
+*.mtx
+*.mtx_rows
+*.mtx_cols
+*.h5
+*.h5ad
+*.loom
+*.fastq*
+*.bam
+*.bai
+*.gtf.gz
+*_series_matrix.txt.gz
+*.xlsx.gz
+*.CEL*
+# Large or local outputs
+*.part
+sample_labels.csv
+cells.csv
+chart_*.png
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+# Editors and OS
+.DS_Store
+.vscode/
+.idea/

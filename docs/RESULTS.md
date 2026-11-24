@@ -43,13 +43,47 @@ age × region interaction, since optic-lobe polyploidy rises from day 7.
 
 ### Single-cell ATAC (Janssens et al. 2022)
 
-Three adult runs, 30,049 cells called, 9,455 passing the fragment filter.
+#### Adult brain — three FDM runs
+
+30,049 cells called, 9,455 passing the fragment filter.
 
 **Not usable.** Doublets alone can account for all the apparent polyploidy: expected doublet
 share among the kept cells is 13–19% per run, against an observed polyploid rate of 6.3%. The
 flies are young, the libraries shallow (median 880–1,540 autosomal fragments per cell), and
 doublets were not removed. No cell type exceeds the doublet expectation. Apparent redox hits
 (ferritins, GstD1, cnc) are consistent with neuron–glia doublets.
+
+#### Larval brain — two DG2 runs, as a positive control
+
+19,363 cells called, 4,699 passing the fragment filter and the depth-thinning step. Larval
+brains carry a known polyploid population, the subperineurial (surface) glia, which
+endoreplicate to cover the growing brain. The ploidy model is fitted **per run**, not per
+cluster: fitting per cluster re-baselines a uniformly polyploid cluster to diploid and hides
+exactly the population the control depends on.
+
+**The ploidy caller works; the association screens do not.**
+
+- **Positive control, PARTLY PASSED.** Surface glia 0.174 versus 0.077 in other non-cycling
+  cells, a difference of **+0.097 (95% interval +0.056 to +0.141)**. Against all other
+  non-dividing cells the difference is +0.088 (+0.051 to +0.131). Cells are scored individually
+  for cycling markers and the most cycling 20% dropped, because coarse cluster labels leave some
+  S/G2 cells in the comparison group; doing so widens the gap.
+- **Second control passing independently:** the dividing clusters are the most polyploid
+  population of all (c15 at 0.362). Cells in S/G2 do have more than 2C of DNA, so the method is
+  reading DNA content, not noise.
+- **Absolute rates are not usable.** Overall polyploid rate 0.110 against a doublet expectation
+  of 0.159 among kept cells. Only comparisons *between* cell types in the same run, which share
+  the doublet background, can be read.
+- **Screens 1–4 are uninterpretable in this data.** Every programme shifts positively, controls
+  included — DNA damage +0.053 and immediate-early +0.047 match or beat licensing (+0.054) and
+  NRF2 (+0.039) — and `p_vs_controls` is 1.00 for all seven test programmes. This is the doublet
+  signature: a neuron–glia doublet looks polyploid *and* carries two cell types' worth of open
+  chromatin, so every gene set appears more accessible in the cells scored as polyploid. Gene
+  level: nothing survives FDR (best q = 0.092, `kay`, `GstD1`, `Mcm7`, `Hsc70-4`, `Xbp1`,
+  `E2f1`, `tefu`); geminin +0.031, q = 0.237.
+
+Doublet-removed or deeper libraries would be needed for the screens. The limitation is in the
+data, not the method.
 
 ## Route C — mammalian liver
 
@@ -127,13 +161,56 @@ Gene level, consistent in both atlases:
 
 - **Up:** Sec61beta +1.59, Sec61alpha +1.28, Hsc70-3 (BiP) +1.16, Pdi +0.81, ERp60 +0.76,
   Xbp1 +0.69, crc +0.63, Calr +0.56, **Ero1L +0.50**.
-- **Down:** **Jafrac1 −1.06** (peroxiredoxin; −1.26, −1.05, −0.86 across the three libraries)
-  and **Gclc −0.88** (rate-limiting for glutathione synthesis).
+- **Down:** **Jafrac1** (cytosolic peroxiredoxin) and **Gclc** (rate-limiting for glutathione
+  synthesis). Direction replicates, magnitude does not: Jafrac1 is −1.06 in Rust (2nd percentile
+  of all genes; −1.26, −1.05, −0.86 across the three libraries) but only −0.43 in Jevitt (18th
+  percentile). Gclc −0.88 (4th percentile) and −0.59 (11th percentile).
 - **Flat:** GstD1 (−0.04 and +0.16). The GstD-GFP reporter would not register this.
 - Not replicated: Sod3 (+1.91 in one atlas, +0.30 and inconsistent in the other).
 
-More H₂O₂ produced, less capacity to remove it — a combination that raises H₂O₂ without
-looking like an antioxidant response.
+The first reading of this was "more H₂O₂ produced, less capacity to remove it". **The absolute
+abundance check does not support the first half.** In linear CPM, `Ero1L` sits at 2.6–3.15 log2
+CPM against `Jafrac1` at 8.6–9.2 — Ero1L is 60–90× less abundant, so a +0.50 rise in it is a
+small absolute change against a large quenching capacity, and several other quenchers rise.
+What the data support is a **fall in specific reducing capacity** (`Jafrac1`, `Gclc`) alongside
+a large rise in ER folding load, not a demonstrated net rise in H₂O₂.
+
+### The thioredoxin arm, enzyme by enzyme
+
+Pulled from the saved gene tables of both atlases (`RouteE_thioredoxin_arm.ipynb`) to ask whether
+reducing capacity falls *as a group* or whether `Jafrac1` moves alone.
+
+| Enzyme | Compartment | Rust GSE136162 | Jevitt GSE146040 |
+| --- | --- | --- | --- |
+| `Jafrac1` | cytosol | −1.06 (2nd pct) | −0.43 (18th pct) |
+| `Jafrac2` | **ER** | **+0.08 (56th pct)** | **+0.04 (54th pct)** |
+| `Trxr-1` | thioredoxin reductase | −0.25 (24th pct) | −0.18 (35th pct) |
+| `Trx-2` | thioredoxin | −0.27 (23rd pct) | −0.42 (19th pct) |
+| `Prx3` | mitochondria | −0.37 (16th pct) | −0.14 (38th pct) |
+| `Prx2540-1`, `Prx2540-2` | peroxiredoxin | not detected | **+0.95, +0.83 (90th+ pct)** |
+| `Sod1` | cytosol | +0.38 (80th pct) | +0.54 (82nd pct) |
+| `Cat` | peroxisome | −0.28 (22nd pct) | +0.58 (83rd pct) |
+
+- **The recycling machinery falls in both, consistently but weakly.** `Trxr-1` and `Trx-2` are
+  down in both atlases and in all three Rust libraries, but at 19th–35th percentile they sit
+  within the general downward drift rather than standing out.
+- **As a programme the arm does not pass:** −0.27 against a random-gene median of +0.11
+  (q = 0.26) in Rust, −0.16 against +0.06 (q = 0.36) in Jevitt. In Jevitt two peroxiredoxins
+  rise strongly, so the group mean is +0.05.
+- **`Jafrac2` is flat in both.** The ER peroxiredoxin does not move while ER folding load rises
+  to the 98th percentile (`Hsc70-3` +1.16 and +2.21) and `Ero1L` rises to the 82nd–87th. The ER
+  increases its folding load and its oxidase without increasing its peroxidase. This is the
+  clearest compartment-specific imbalance in the dataset.
+- **`Sod1` rises in both** (80th–82nd percentile), which adds a second H₂O₂ source, since SOD
+  converts superoxide to H₂O₂.
+- **Power is limited.** Dropout leaves 5 of 12 arm enzymes detected in Rust and 8 of 12 in
+  Jevitt; `Prx5`, `Trxr-2`, `TrxT` and `Srx` are missing from both, and `Gr1` from either.
+
+**Consequence for the HyPer7 confound.** HyPer7 is reduced by the thioredoxin system, so a fall
+in that system raises the probe's basal ratio without any change in H₂O₂. The fall here is real
+in direction but modest in size, which **weakens that confound without eliminating it** — it is
+unlikely to account for a large HyPer7 rise on its own. The bolus-and-recovery control is still
+needed to separate the two.
 
 **Caveat:** in this lineage ploidy and developmental stage rise together, so this is
 endocycling versus mitotic, not ploidy alone.

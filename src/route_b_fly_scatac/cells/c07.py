@@ -30,9 +30,66 @@ print(f"Cell types with clearly more polyploidy than doublets: {int(check.clear_
 if check.clear_excess.sum() == 0:
     print("WARNING: no cell type has more polyploidy than doublets would give. Later results cannot be trusted; "
           "use deeper runs, older flies, or doublet-removed data.")
+div = cells.cell_type.str.startswith("dividing")
+if div.any():
+    print(f"\nDividing cells (neuroblasts and S/G2/M): polyploid rate {cells.P_polyploid[div].mean():.2f}. "
+          "This is cell-cycle DNA content, not endoreplication: ignore it.")
+
+# Positive control: subperineurial glia endoreplicate to cover the growing brain, so they SHOULD be polyploid.
+# If they are not found above the doublet rate here, the method is not sensitive enough in data of this depth,
+# and a null result in other runs cannot be interpreted.
 surface = cells.cell_type.str.startswith("surface glia")
+print("\n=== POSITIVE CONTROL: subperineurial (surface) glia ===")
 if surface.any():
-    print(f"Bonus check: surface glia polyploid rate {cells.P_polyploid[surface].mean():.2f} "
-          f"(expected high), other cells {cells.P_polyploid[~surface].mean():.2f}")
+    part = cells[surface]
+    boot = [part.P_polyploid.sample(len(part), replace=True, random_state=i).mean() for i in range(2000)]
+    lo, hi = np.quantile(boot, [0.025, 0.975])
+    exp = part.expected_doublet.mean()
+    rest = cells.P_polyploid[~surface & ~div].mean()
+    print(f"{len(part):,} surface glia: polyploid rate {part.P_polyploid.mean():.3f} "
+          f"(95% interval {lo:.3f} to {hi:.3f}), expected from doublets {exp:.3f}")
+    print(f"Other non-dividing cells: {rest:.3f}")
+    # Doublets hit every cluster about equally, so comparing surface glia with the OTHER cell types of the same
+    # runs cancels that background. This is the more sensitive test; the absolute one above is conservative,
+    # because it assumes every doublet is detected as polyploid.
+    # Cluster labels are coarse: a cluster can sit just under the "dividing" threshold and still be full of
+    # cells in S/G2. Score every cell individually and drop the most cycling ones from the comparison group.
+    cyc_idx = [gene_pos[g] for g in MARKERS["dividing (S/G2/M)"] + MARKERS["neuroblast"] if g in gene_pos]
+    cyc = np.asarray(logcpm[:, cyc_idx].mean(axis=1)).ravel()
+    cells["cycling_score"] = (cyc - cyc.mean()) / (cyc.std() or 1)
+    quiet = cells.cycling_score <= np.quantile(cells.cycling_score, 0.80)
+    print(f"\nPer-cell check: dropping the 20% most cycling cells leaves "
+          f"{int((surface & quiet).sum()):,} surface glia and {int((~surface & ~div & quiet).sum()):,} other cells.")
+    sq, oq = cells[surface & quiet], cells[~surface & ~div & quiet]
+    if len(sq) >= 30 and len(oq) >= 30:
+        bs = [sq.P_polyploid.sample(len(sq), replace=True, random_state=i).mean() for i in range(2000)]
+        bq = [oq.P_polyploid.sample(len(oq), replace=True, random_state=i).mean() for i in range(2000)]
+        d2 = np.quantile([a_ - b_ for a_, b_ in zip(bs, bq)], [0.025, 0.975])
+        print(f"   Surface glia {sq.P_polyploid.mean():.3f} vs other non-cycling cells {oq.P_polyploid.mean():.3f}: "
+              f"difference {sq.P_polyploid.mean() - oq.P_polyploid.mean():+.3f} "
+              f"(95% interval {d2[0]:+.3f} to {d2[1]:+.3f})")
+    others = cells[~surface & ~div]
+    bo = [others.P_polyploid.sample(len(others), replace=True, random_state=i).mean() for i in range(2000)]
+    diff = [a_ - b_ for a_, b_ in zip(boot, bo)]
+    dlo, dhi = np.quantile(diff, [0.025, 0.975])
+    print(f"Surface glia minus other non-dividing cells: {part.P_polyploid.mean() - rest:+.3f} "
+          f"(95% interval {dlo:+.3f} to {dhi:+.3f})")
+    if lo > exp:
+        print("PASSED on both tests. Surface glia exceed the doublet rate outright, so the method works on data of "
+              "this depth and a null result elsewhere can be read as a real negative.")
+    elif dlo > 0:
+        print("PARTLY PASSED. Surface glia do NOT exceed the absolute doublet rate, but they are clearly more "
+              "polyploid than the other cell types in the same runs, which share the same doublet background. "
+              "So the method does detect real differences in ploidy between cell types; what it cannot do in data "
+              "of this depth is prove that any single population exceeds the doublet rate on its own. Comparisons "
+              "BETWEEN cell types are usable; absolute polyploid rates are not.")
+    else:
+        print("FAILED. Surface glia are no more polyploid than other cells and do not exceed the doublet rate. "
+              "The method is not sensitive enough in data of this depth, so a null result in other runs means "
+              "nothing either way. Deeper libraries or doublet-removed data are needed.")
+    if PLOIDY_FIT == "per cluster":
+        print("\nNote: PLOIDY_FIT is 'per cluster', which fits each cluster against its own baseline and will hide a "
+              "cell type that is mostly polyploid. Set it to 'per run' in Cell 1 and run again from Cell 6.")
 else:
-    print("No surface glia cluster (expected: they are very few). The doublet check above is the main test.")
+    print("No surface glia cluster was found, so the positive control could not be run. Raising N_CLUSTERS in Cell 1 "
+          "may separate them; they are a small population.")

@@ -98,7 +98,7 @@ tracks polyploidy should separate after day 7.</p>
 {table(["Pattern", "What it suggests"], [
  ["<b>A redox programme passes, rising more in the optic lobe</b>", "Redox genes go up where polyploid cells build up. Lead for FlyPer imaging"],
  ["<b>p53 positive control passes, redox does not</b>", "The data work; no redox shift tracks optic-lobe polyploidy at the tissue level"],
- ["<b>Licensing genes (Gem, dup, Cdc6, Orc1) rise in the optic lobe</b>", "Consistent with the re-entry the paper reported; compare with your Geminin results"],
+ ["<b>Licensing genes (Gem, dup, Cdc6, Orc1) rise in the optic lobe</b>", "Consistent with the re-entry the paper reported; compare against your own licensing-gene data"],
  ["<b>p53 positive control does not pass</b>", "Check the Cell 3 region check and sample_labels.csv before reading anything else"]])}
 
 <h1 style="font-size:17pt;margin-top:22px">Part 2. Single-cell ATAC (when fragment files are obtained)</h1>
@@ -255,7 +255,8 @@ saved to your Drive folder.</p>
 H<sub>2</sub>O<sub>2</sub> sensor HyPer7 in the nucleus, mitochondria, cytosol or plasma membrane under UAS control. Because the sensor
 reads out a ratio, more sensor in a larger polyploid cell should not change the reading. A direct test: nuclear or
 mitochondrial FlyPer with nSyb-GAL4 or repo-GAL4; image optic lobes at 14-21 days; score each nucleus for size or DAPI
-intensity and HyPer7 ratio; compare with Geminin RNAi (more polyploidy) and paraquat (more oxidative stress).</p>
+intensity and HyPer7 ratio; compare against a condition that raises ploidy (for example knockdown of a replication
+licensing inhibitor) and against paraquat as an oxidative-stress positive control.</p>
 
 <h2>B.14 Results summary for your supervisors</h2>
 {table(["Item", "Your result"], [[f"<b>{i}</b>", ""] for i in [

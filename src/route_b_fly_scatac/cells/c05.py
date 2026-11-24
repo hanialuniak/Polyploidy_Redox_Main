@@ -17,8 +17,11 @@ svd = TruncatedSVD(n_components=30, random_state=SEED).fit_transform(tfidf)[:, 1
 svd = svd / np.linalg.norm(svd, axis=1, keepdims=True)
 cells["cluster"] = KMeans(n_clusters=N_CLUSTERS, n_init=5, random_state=SEED).fit_predict(svd).astype(str)
 
-MARKERS = {"neuron": ["elav", "nSyb", "brp", "fne"], "glia": ["repo"], "surface glia": ["moody", "Mdr65"],
-           "astrocyte": ["alrm", "Eaat1"], "ensheathing glia": ["Eaat2"], "cortex glia": ["wrapper"]}
+MARKERS = {"neuron": ["elav", "nSyb", "brp", "fne"], "glia": ["repo"],
+           "surface glia": ["moody", "Mdr65", "Gli", "Nrx-IV"],          # subperineurial glia: known polyploid
+           "astrocyte": ["alrm", "Eaat1"], "ensheathing glia": ["Eaat2"], "cortex glia": ["wrapper"],
+           "neuroblast": ["dpn", "ase", "mira", "wor", "insc", "pros"],  # larval and pupal brains only
+           "dividing (S/G2/M)": ["PCNA", "RnrS", "RnrL", "Mcm2", "Mcm5", "dpa", "CycB", "polo", "stg", "aurB"]}
 gene_pos = {g: i for i, g in enumerate(genes.gene)}
 
 # Polyploid cells have more fragments. Thin every cell to the same number of cut sites in genes
@@ -44,7 +47,9 @@ marker_table = pd.DataFrame(marker_table)
 z = (marker_table - marker_table.mean()) / marker_table.std()
 names = {}
 for cl, row in z.iterrows():
-    if row.get("surface glia", -9) > 1.5:
+    if row.get("neuroblast", -9) > 1.2 or row.get("dividing (S/G2/M)", -9) > 1.5:
+        names[cl] = "dividing cells"          # neuroblasts and their daughters: 2-4C because they are in cycle
+    elif row.get("surface glia", -9) > 1.5:
         names[cl] = "surface glia"
     elif row.get("glia", -9) > 0.5:
         sub = max(("astrocyte", "ensheathing glia", "cortex glia"), key=lambda k: row.get(k, -9))
@@ -54,3 +59,8 @@ for cl, row in z.iterrows():
 cells["cell_type"] = cells.cluster.map(names) + " (c" + cells.cluster + ")"
 summary = z.round(2).assign(name=pd.Series(names), cells=cells.cluster.value_counts())
 display(summary.sort_values("name"))
+if (pd.Series(names) == "dividing cells").any():
+    n_div = int((cells.cluster.map(names) == "dividing cells").sum())
+    print(f"\n{n_div:,} cells are in clusters that look like neuroblasts or cells in S/G2/M. A cell in S or G2 has "
+          "more than 2C of DNA and will be called polyploid by Cell 6, so these are reported separately in Cell 7 "
+          "and must not be read as endoreplication.")

@@ -442,7 +442,7 @@ for name, frame in {&quot;bulk_programmes.csv&quot;: result, &quot;bulk_genes.cs
 print(&quot;Saved to&quot;, DATA_DIR)</pre>
 <p>The chart shows each programme's average score by age, optic lobe in orange and central brain in blue. A programme that
 tracks polyploidy should separate after day 7.</p>
-<table class=""><thead><tr><th>Pattern</th><th>What it suggests</th></tr></thead><tbody><tr><td><b>A redox programme passes, rising more in the optic lobe</b></td><td>Redox genes go up where polyploid cells build up. Lead for FlyPer imaging</td></tr><tr><td><b>p53 positive control passes, redox does not</b></td><td>The data work; no redox shift tracks optic-lobe polyploidy at the tissue level</td></tr><tr><td><b>Licensing genes (Gem, dup, Cdc6, Orc1) rise in the optic lobe</b></td><td>Consistent with the re-entry the paper reported; compare with your Geminin results</td></tr><tr><td><b>p53 positive control does not pass</b></td><td>Check the Cell 3 region check and sample_labels.csv before reading anything else</td></tr></tbody></table>
+<table class=""><thead><tr><th>Pattern</th><th>What it suggests</th></tr></thead><tbody><tr><td><b>A redox programme passes, rising more in the optic lobe</b></td><td>Redox genes go up where polyploid cells build up. Lead for FlyPer imaging</td></tr><tr><td><b>p53 positive control passes, redox does not</b></td><td>The data work; no redox shift tracks optic-lobe polyploidy at the tissue level</td></tr><tr><td><b>Licensing genes (Gem, dup, Cdc6, Orc1) rise in the optic lobe</b></td><td>Consistent with the re-entry the paper reported; compare against your own licensing-gene data</td></tr><tr><td><b>p53 positive control does not pass</b></td><td>Check the Cell 3 region check and sample_labels.csv before reading anything else</td></tr></tbody></table>
 
 <h1 style="font-size:17pt;margin-top:22px">Part 2. Single-cell ATAC (when fragment files are obtained)</h1>
 <p>This part uses <i>RouteB_fly_ploidy_redox.ipynb</i>. It is ready, but waits for fragment files from the Aerts lab or
@@ -515,10 +515,17 @@ if not os.path.isdir(DATA_DIR):
     raise StopHere(f&quot;Folder not found: {DATA_DIR}. Check the folder name in Google Drive and fix DATA_DIR above.&quot;)
 
 #@markdown **Runs**: one sub-folder per sequencing run, each holding fragments.tsv.gz and singlecell.csv.
+#@markdown The default is the two **larval brain** runs, which carry a known polyploid population (subperineurial
+#@markdown glia) and so act as a positive control for the ploidy calling. For the adult brain, paste the three
+#@markdown FDM run names instead.
 #@markdown Prefer runs that include the optic lobes and flies at least 1-3 weeks old (see the guide).
-RUNS = &quot;FDM__f2501a__10x_scATAC_mix_DGRP_adult_brain, FDM__1d60cb__10x_scATAC_mix_DGRP_adult_central_brain, FDM__9c338b__10x_scATAC_mix_DGRP_adult_central_brain&quot;  #@param {type:&quot;string&quot;}
+RUNS = &quot;DFB__303662__10x_scATAC_DG2_larval_brain, DFB__96a6e8__10x_scATAC_DG2_larval_brain&quot;  #@param {type:&quot;string&quot;}
 GTF_FILE = &quot;Drosophila_melanogaster.gtf.gz&quot;  #@param {type:&quot;string&quot;}
 N_CLUSTERS = 20  #@param {type:&quot;integer&quot;}
+#@markdown **PLOIDY_FIT**: &quot;per run&quot; fits the ploidy model once across all cells of a run, so a cell type that is
+#@markdown mostly polyploid can be seen as such. &quot;per cluster&quot; fits each cluster separately, which re-baselines
+#@markdown a uniformly polyploid cluster to look diploid and will hide it.
+PLOIDY_FIT = &quot;per run&quot;  #@param [&quot;per run&quot;, &quot;per cluster&quot;]
 MIN_FRAGMENTS = 2000  #@param {type:&quot;integer&quot;}
 MAX_FRAGMENTS = 60000  #@param {type:&quot;integer&quot;}
 GENES_OF_INTEREST = &quot;geminin, dup, Cdc6, Orc1&quot;  #@param {type:&quot;string&quot;}
@@ -701,8 +708,11 @@ svd = TruncatedSVD(n_components=30, random_state=SEED).fit_transform(tfidf)[:, 1
 svd = svd / np.linalg.norm(svd, axis=1, keepdims=True)
 cells[&quot;cluster&quot;] = KMeans(n_clusters=N_CLUSTERS, n_init=5, random_state=SEED).fit_predict(svd).astype(str)
 
-MARKERS = {&quot;neuron&quot;: [&quot;elav&quot;, &quot;nSyb&quot;, &quot;brp&quot;, &quot;fne&quot;], &quot;glia&quot;: [&quot;repo&quot;], &quot;surface glia&quot;: [&quot;moody&quot;, &quot;Mdr65&quot;],
-           &quot;astrocyte&quot;: [&quot;alrm&quot;, &quot;Eaat1&quot;], &quot;ensheathing glia&quot;: [&quot;Eaat2&quot;], &quot;cortex glia&quot;: [&quot;wrapper&quot;]}
+MARKERS = {&quot;neuron&quot;: [&quot;elav&quot;, &quot;nSyb&quot;, &quot;brp&quot;, &quot;fne&quot;], &quot;glia&quot;: [&quot;repo&quot;],
+           &quot;surface glia&quot;: [&quot;moody&quot;, &quot;Mdr65&quot;, &quot;Gli&quot;, &quot;Nrx-IV&quot;],          # subperineurial glia: known polyploid
+           &quot;astrocyte&quot;: [&quot;alrm&quot;, &quot;Eaat1&quot;], &quot;ensheathing glia&quot;: [&quot;Eaat2&quot;], &quot;cortex glia&quot;: [&quot;wrapper&quot;],
+           &quot;neuroblast&quot;: [&quot;dpn&quot;, &quot;ase&quot;, &quot;mira&quot;, &quot;wor&quot;, &quot;insc&quot;, &quot;pros&quot;],  # larval and pupal brains only
+           &quot;dividing (S/G2/M)&quot;: [&quot;PCNA&quot;, &quot;RnrS&quot;, &quot;RnrL&quot;, &quot;Mcm2&quot;, &quot;Mcm5&quot;, &quot;dpa&quot;, &quot;CycB&quot;, &quot;polo&quot;, &quot;stg&quot;, &quot;aurB&quot;]}
 gene_pos = {g: i for i, g in enumerate(genes.gene)}
 
 # Polyploid cells have more fragments. Thin every cell to the same number of cut sites in genes
@@ -728,7 +738,9 @@ marker_table = pd.DataFrame(marker_table)
 z = (marker_table - marker_table.mean()) / marker_table.std()
 names = {}
 for cl, row in z.iterrows():
-    if row.get(&quot;surface glia&quot;, -9) &gt; 1.5:
+    if row.get(&quot;neuroblast&quot;, -9) &gt; 1.2 or row.get(&quot;dividing (S/G2/M)&quot;, -9) &gt; 1.5:
+        names[cl] = &quot;dividing cells&quot;          # neuroblasts and their daughters: 2-4C because they are in cycle
+    elif row.get(&quot;surface glia&quot;, -9) &gt; 1.5:
         names[cl] = &quot;surface glia&quot;
     elif row.get(&quot;glia&quot;, -9) &gt; 0.5:
         sub = max((&quot;astrocyte&quot;, &quot;ensheathing glia&quot;, &quot;cortex glia&quot;), key=lambda k: row.get(k, -9))
@@ -737,7 +749,12 @@ for cl, row in z.iterrows():
         names[cl] = &quot;neuron&quot;
 cells[&quot;cell_type&quot;] = cells.cluster.map(names) + &quot; (c&quot; + cells.cluster + &quot;)&quot;
 summary = z.round(2).assign(name=pd.Series(names), cells=cells.cluster.value_counts())
-display(summary.sort_values(&quot;name&quot;))</pre>
+display(summary.sort_values(&quot;name&quot;))
+if (pd.Series(names) == &quot;dividing cells&quot;).any():
+    n_div = int((cells.cluster.map(names) == &quot;dividing cells&quot;).sum())
+    print(f&quot;\n{n_div:,} cells are in clusters that look like neuroblasts or cells in S/G2/M. A cell in S or G2 has &quot;
+          &quot;more than 2C of DNA and will be called polyploid by Cell 6, so these are reported separately in Cell 7 &quot;
+          &quot;and must not be read as endoreplication.&quot;)</pre>
 <div class="warn"><b>Why thinning matters.</b> Without it, in a simulation where only the cnc pathway was changed, every programme and every stress control looked more open in polyploid cells (up to 0.15 for controls), because polyploid cells simply have more fragments. After thinning, the controls fell to about zero.</div>
 <p><b>What you should see:</b> a table of clusters with marker scores and a name. Neurons should be the large majority, with
 several glia clusters. Surface glia may not appear, because they are few.</p>
@@ -799,7 +816,10 @@ def fit_ploidy(C, kappa=8.0, n_iter=40):
 
 for p in PLOIDIES:
     cells[f&quot;P_{p}C&quot;] = np.nan
-for cl, part in cells.groupby(&quot;cluster&quot;):
+group_by = &quot;run&quot; if PLOIDY_FIT == &quot;per run&quot; else &quot;cluster&quot;
+print(f&quot;Fitting the ploidy model {PLOIDY_FIT} &quot;
+      f&quot;({cells.groupby(group_by).ngroups} group(s), {len(cells):,} cells).&quot;)
+for cl, part in cells.groupby(group_by):
     resp, log_s = fit_ploidy(overlaps.loc[part.cell_id].to_numpy())
     for j, p in enumerate(PLOIDIES):
         cells.loc[part.index, f&quot;P_{p}C&quot;] = resp[:, j]
@@ -854,12 +874,69 @@ print(f&quot;Cell types with clearly more polyploidy than doublets: {int(check.c
 if check.clear_excess.sum() == 0:
     print(&quot;WARNING: no cell type has more polyploidy than doublets would give. Later results cannot be trusted; &quot;
           &quot;use deeper runs, older flies, or doublet-removed data.&quot;)
+div = cells.cell_type.str.startswith(&quot;dividing&quot;)
+if div.any():
+    print(f&quot;\nDividing cells (neuroblasts and S/G2/M): polyploid rate {cells.P_polyploid[div].mean():.2f}. &quot;
+          &quot;This is cell-cycle DNA content, not endoreplication: ignore it.&quot;)
+
+# Positive control: subperineurial glia endoreplicate to cover the growing brain, so they SHOULD be polyploid.
+# If they are not found above the doublet rate here, the method is not sensitive enough in data of this depth,
+# and a null result in other runs cannot be interpreted.
 surface = cells.cell_type.str.startswith(&quot;surface glia&quot;)
+print(&quot;\n=== POSITIVE CONTROL: subperineurial (surface) glia ===&quot;)
 if surface.any():
-    print(f&quot;Bonus check: surface glia polyploid rate {cells.P_polyploid[surface].mean():.2f} &quot;
-          f&quot;(expected high), other cells {cells.P_polyploid[~surface].mean():.2f}&quot;)
+    part = cells[surface]
+    boot = [part.P_polyploid.sample(len(part), replace=True, random_state=i).mean() for i in range(2000)]
+    lo, hi = np.quantile(boot, [0.025, 0.975])
+    exp = part.expected_doublet.mean()
+    rest = cells.P_polyploid[~surface &amp; ~div].mean()
+    print(f&quot;{len(part):,} surface glia: polyploid rate {part.P_polyploid.mean():.3f} &quot;
+          f&quot;(95% interval {lo:.3f} to {hi:.3f}), expected from doublets {exp:.3f}&quot;)
+    print(f&quot;Other non-dividing cells: {rest:.3f}&quot;)
+    # Doublets hit every cluster about equally, so comparing surface glia with the OTHER cell types of the same
+    # runs cancels that background. This is the more sensitive test; the absolute one above is conservative,
+    # because it assumes every doublet is detected as polyploid.
+    # Cluster labels are coarse: a cluster can sit just under the &quot;dividing&quot; threshold and still be full of
+    # cells in S/G2. Score every cell individually and drop the most cycling ones from the comparison group.
+    cyc_idx = [gene_pos[g] for g in MARKERS[&quot;dividing (S/G2/M)&quot;] + MARKERS[&quot;neuroblast&quot;] if g in gene_pos]
+    cyc = np.asarray(logcpm[:, cyc_idx].mean(axis=1)).ravel()
+    cells[&quot;cycling_score&quot;] = (cyc - cyc.mean()) / (cyc.std() or 1)
+    quiet = cells.cycling_score &lt;= np.quantile(cells.cycling_score, 0.80)
+    print(f&quot;\nPer-cell check: dropping the 20% most cycling cells leaves &quot;
+          f&quot;{int((surface &amp; quiet).sum()):,} surface glia and {int((~surface &amp; ~div &amp; quiet).sum()):,} other cells.&quot;)
+    sq, oq = cells[surface &amp; quiet], cells[~surface &amp; ~div &amp; quiet]
+    if len(sq) &gt;= 30 and len(oq) &gt;= 30:
+        bs = [sq.P_polyploid.sample(len(sq), replace=True, random_state=i).mean() for i in range(2000)]
+        bq = [oq.P_polyploid.sample(len(oq), replace=True, random_state=i).mean() for i in range(2000)]
+        d2 = np.quantile([a_ - b_ for a_, b_ in zip(bs, bq)], [0.025, 0.975])
+        print(f&quot;   Surface glia {sq.P_polyploid.mean():.3f} vs other non-cycling cells {oq.P_polyploid.mean():.3f}: &quot;
+              f&quot;difference {sq.P_polyploid.mean() - oq.P_polyploid.mean():+.3f} &quot;
+              f&quot;(95% interval {d2[0]:+.3f} to {d2[1]:+.3f})&quot;)
+    others = cells[~surface &amp; ~div]
+    bo = [others.P_polyploid.sample(len(others), replace=True, random_state=i).mean() for i in range(2000)]
+    diff = [a_ - b_ for a_, b_ in zip(boot, bo)]
+    dlo, dhi = np.quantile(diff, [0.025, 0.975])
+    print(f&quot;Surface glia minus other non-dividing cells: {part.P_polyploid.mean() - rest:+.3f} &quot;
+          f&quot;(95% interval {dlo:+.3f} to {dhi:+.3f})&quot;)
+    if lo &gt; exp:
+        print(&quot;PASSED on both tests. Surface glia exceed the doublet rate outright, so the method works on data of &quot;
+              &quot;this depth and a null result elsewhere can be read as a real negative.&quot;)
+    elif dlo &gt; 0:
+        print(&quot;PARTLY PASSED. Surface glia do NOT exceed the absolute doublet rate, but they are clearly more &quot;
+              &quot;polyploid than the other cell types in the same runs, which share the same doublet background. &quot;
+              &quot;So the method does detect real differences in ploidy between cell types; what it cannot do in data &quot;
+              &quot;of this depth is prove that any single population exceeds the doublet rate on its own. Comparisons &quot;
+              &quot;BETWEEN cell types are usable; absolute polyploid rates are not.&quot;)
+    else:
+        print(&quot;FAILED. Surface glia are no more polyploid than other cells and do not exceed the doublet rate. &quot;
+              &quot;The method is not sensitive enough in data of this depth, so a null result in other runs means &quot;
+              &quot;nothing either way. Deeper libraries or doublet-removed data are needed.&quot;)
+    if PLOIDY_FIT == &quot;per cluster&quot;:
+        print(&quot;\nNote: PLOIDY_FIT is &#x27;per cluster&#x27;, which fits each cluster against its own baseline and will hide a &quot;
+              &quot;cell type that is mostly polyploid. Set it to &#x27;per run&#x27; in Cell 1 and run again from Cell 6.&quot;)
 else:
-    print(&quot;No surface glia cluster (expected: they are very few). The doublet check above is the main test.&quot;)</pre>
+    print(&quot;No surface glia cluster was found, so the positive control could not be run. Raising N_CLUSTERS in Cell 1 &quot;
+          &quot;may separate them; they are a small population.&quot;)</pre>
 <div class="ok"><b>Tested.</b> Simulation with polyploid neurons, astrocytes, cortex glia and surface glia: 9 of 12 cell types showed a clear excess over the expected doublet rate; surface glia came out at 1.00 against 0.08 for other cells.</div>
 <table class=""><thead><tr><th>What you see</th><th>What it means</th></tr></thead><tbody><tr><td><b>Several cell types with clear excess (optic-lobe neurons, cortex or astrocyte-like glia)</b></td><td>Ploidy calls are picking up real polyploidy; carry on</td></tr><tr><td><b>WARNING: no cell type has more polyploidy than doublets</b></td><td>Stop. Results from Cell 10 on cannot be trusted. Use runs with optic lobes and older flies</td></tr><tr><td><b>Surface glia present and high</b></td><td>Bonus confirmation</td></tr><tr><td><b>A single neuron cluster with very high polyploidy</b></td><td>Real, or a cluster formed by high-depth cells. Check it has a clear excess and compare with the paper's cell types</td></tr></tbody></table>
 
@@ -1079,7 +1156,8 @@ saved to your Drive folder.</p>
 H<sub>2</sub>O<sub>2</sub> sensor HyPer7 in the nucleus, mitochondria, cytosol or plasma membrane under UAS control. Because the sensor
 reads out a ratio, more sensor in a larger polyploid cell should not change the reading. A direct test: nuclear or
 mitochondrial FlyPer with nSyb-GAL4 or repo-GAL4; image optic lobes at 14-21 days; score each nucleus for size or DAPI
-intensity and HyPer7 ratio; compare with Geminin RNAi (more polyploidy) and paraquat (more oxidative stress).</p>
+intensity and HyPer7 ratio; compare against a condition that raises ploidy (for example knockdown of a replication
+licensing inhibitor) and against paraquat as an oxidative-stress positive control.</p>
 
 <h2>B.14 Results summary for your supervisors</h2>
 <table class="summary"><thead><tr><th>Item</th><th>Your result</th></tr></thead><tbody><tr><td><b>Runs used (tissue, fly age); cells called; cells analysed</b></td><td></td></tr><tr><td><b>Cell types with clear excess polyploidy over expected doublets</b></td><td></td></tr><tr><td><b>Surface glia, if present: polyploid rate</b></td><td></td></tr><tr><td><b>Licensing and p53 explore sets: verdicts</b></td><td></td></tr><tr><td><b>Screens 1-3: any redox programme passing, with direction</b></td><td></td></tr><tr><td><b>Screen 4: top genes; Gem, dup, Cdc6, Orc1 partial rho and q</b></td><td></td></tr><tr><td><b>Per cell type: does any effect agree across clusters?</b></td><td></td></tr><tr><td><b>Leads to test by RNA, staining or genetics in flies</b></td><td></td></tr></tbody></table>

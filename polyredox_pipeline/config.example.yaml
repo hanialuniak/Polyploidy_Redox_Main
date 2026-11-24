@@ -1,0 +1,44 @@
+# Example configuration. Relative paths are resolved from this file's folder.
+outdir: results
+
+# One row per nucleus. Required columns: cell_id, library, barcode, donor,
+# cell_class, cell_type. Optional: region, cohort, pathology, doublet_score, and
+# any extra_covariates. Use `columns` to map your own column names onto these.
+cells: cells.tsv
+columns:
+  cell_id: cell_id            # must match the RNA matrix's cell names
+  library: library            # one 10x channel, matching the libraries table
+  barcode: barcode            # as written in that library's fragment file
+  donor: donor
+  cell_class: cell_class      # broad class used for ploidy fitting and doublet rates, e.g. Exc / Inh
+  cell_type: cell_type        # finer label; absorbed with donor and region
+  pathology: pathology        # optional, e.g. a continuous pseudo-progression score
+
+# Columns: library, fragments (path to the coordinate-sorted 10x fragments.tsv.gz),
+# n_recovered (nuclei recovered from the channel before QC; drives expected doublets).
+libraries: libraries.tsv
+
+# Raw UMI counts are required. For h5ad, set layer to the raw-count layer.
+rna:
+  format: h5ad                # or mtx (a folder with matrix.mtx, barcodes.tsv, features.tsv)
+  path: rna.h5ad
+  layer: UMIs                 # check with adata.layers.keys(); X may be normalised
+  gene_symbol_column: null    # var column holding gene symbols, if var_names are IDs
+
+analysis_classes: [Exc, Inh]  # classes to test; ploidy is still fitted on all classes
+exclude_bed: null             # recommended: UCSC simple repeats BED for your genome build
+autosome_regex: "^(chr)?([1-9]|1[0-9]|2[0-2])$"   # for Drosophila: "^(2L|2R|3L|3R)$"
+genesets: []                  # GMT files; empty uses the packaged starter sets
+extra_covariates: []          # ratio QC metrics, e.g. [tss_enrichment, frip]; not raw counts
+
+min_fragments: 3000           # calls below ~2,000 fragments were poorly calibrated in simulation
+max_fragments: 100000
+doublet_rate_per_1000: 0.008  # 10x multiplet rate per 1,000 recovered nuclei; check your chemistry
+doublet_score_max: null       # drop nuclei above this doublet_score, if that column exists
+kappa: 8.0                    # site-heterogeneity of overlap probability (beta-binomial)
+n_flips: 9999
+n_matched_sets: 999
+n_ml_null_draws: 49
+max_ml_cells: 100000
+n_jobs: 4
+seed: 0

@@ -9,7 +9,7 @@ prog = {"cnc": "cnc Keap1 Gclc Gclm GstD1 GstD2 GstE1 GstS1 Zw Pgd Men",
         "mito": "ND-75 ND-49 ND-30 ND-42 SdhA SdhB UQCR-C1 UQCR-C2 Cyt-c-p COX4 COX5A ATPsynbeta blw",
         "upr": "Hsc70-3 Xbp1 crc PEK Ire1 Atf6 Pdi ERp60 Calr", "hs": "Hsp70Aa Hsp83 Hsp68 Hsp27 Hsp26 Hsc70-4 DnaJ-1 Hsf",
         "dna": "p53 mei-41 tefu lok spn-A mus304 Xrp1 rpr hid", "ieg": "Hr38 sr kay Jra puc CrebA"}
-markers = {"neuron": "elav nSyb brp fne", "glia": "repo", "surface": "moody Mdr65", "astro": "alrm Eaat1", "ens": "Eaat2", "cortex": "wrapper"}
+markers = {"neuron": "elav nSyb brp fne", "glia": "repo", "surface": "moody Mdr65 Gli Nrx-IV", "astro": "alrm Eaat1", "ens": "Eaat2", "cortex": "wrapper", "nb": "dpn ase mira wor insc pros", "cyc": "PCNA RnrS RnrL Mcm2 Mcm5 dpa CycB polo stg aurB"}
 prog["lic"] = "Gem dup Cdc6 Orc1 Mcm2 Mcm3 dpa Mcm5 Mcm6 Mcm7 CycE E2f1 Myc CycD"
 prog["hripd"] = "Ku80 Irbp Cht8 CG3344 CG4734 Fanci lok rad50 Xrp1 p53"
 named = sorted({g for v in list(prog.values()) + list(markers.values()) for g in v.split()} | {"Gem", "dup"})
@@ -25,13 +25,14 @@ with gzip.open(f"{out}/Drosophila_melanogaster.gtf.gz", "wt") as h:
     h.write("#!genome-build BDGP6\n"); h.writelines(rows)
 gidx = {g: i for i, g in enumerate(genes)}
 base = rng.gamma(0.7, 1.0, len(genes))
-types = {"neuron": 0.72, "glia": 0.08, "astro": 0.07, "cortex": 0.06, "surface": 0.04, "ens": 0.03}
+types = {"neuron": 0.58, "glia": 0.07, "astro": 0.06, "cortex": 0.05, "surface": 0.04, "ens": 0.03,
+         "nb": 0.09, "cyc": 0.08}   # larval brain: neuroblasts and cycling daughters present
 tf = {t: rng.lognormal(0, 0.3, len(genes)) for t in types}
 for t, ms in markers.items():
     for g in ms.split():
         tf[t if t in tf else "neuron"][gidx[g]] *= 8
 for g in markers["glia"].split():
-    for t in ("astro", "surface", "ens"): tf[t][gidx[g]] *= 8
+    for t in ("astro", "surface", "ens", "nb", "cyc"): tf[t][gidx[g]] *= 8
 n_cells = 1800
 recovered = n_cells + 200
 mult = recovered / 1000 * 0.008
@@ -44,6 +45,7 @@ for c in range(n_cells):
     dbl = rng.random() < mult * share / (1 - mult + mult * share)
     if dbl: copies = 4
     elif t == "surface": copies = int(rng.choice([8, 16], p=[0.6, 0.4]))
+    elif t in ("nb", "cyc"): copies = int(rng.choice([2, 4], p=[0.45, 0.55]))   # in cycle, not endoreplicating
     elif t in ("neuron", "astro", "cortex") and rng.random() < 0.06: copies = 4
     else: copies = 2
     poly = copies > 2 and not dbl

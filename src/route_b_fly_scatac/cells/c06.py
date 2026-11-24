@@ -53,7 +53,10 @@ def fit_ploidy(C, kappa=8.0, n_iter=40):
 
 for p in PLOIDIES:
     cells[f"P_{p}C"] = np.nan
-for cl, part in cells.groupby("cluster"):
+group_by = "run" if PLOIDY_FIT == "per run" else "cluster"
+print(f"Fitting the ploidy model {PLOIDY_FIT} "
+      f"({cells.groupby(group_by).ngroups} group(s), {len(cells):,} cells).")
+for cl, part in cells.groupby(group_by):
     resp, log_s = fit_ploidy(overlaps.loc[part.cell_id].to_numpy())
     for j, p in enumerate(PLOIDIES):
         cells.loc[part.index, f"P_{p}C"] = resp[:, j]

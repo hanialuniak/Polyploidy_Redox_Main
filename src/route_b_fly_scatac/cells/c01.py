@@ -26,10 +26,17 @@ if not os.path.isdir(DATA_DIR):
     raise StopHere(f"Folder not found: {DATA_DIR}. Check the folder name in Google Drive and fix DATA_DIR above.")
 
 #@markdown **Runs**: one sub-folder per sequencing run, each holding fragments.tsv.gz and singlecell.csv.
+#@markdown The default is the two **larval brain** runs, which carry a known polyploid population (subperineurial
+#@markdown glia) and so act as a positive control for the ploidy calling. For the adult brain, paste the three
+#@markdown FDM run names instead.
 #@markdown Prefer runs that include the optic lobes and flies at least 1-3 weeks old (see the guide).
-RUNS = "FDM__f2501a__10x_scATAC_mix_DGRP_adult_brain, FDM__1d60cb__10x_scATAC_mix_DGRP_adult_central_brain, FDM__9c338b__10x_scATAC_mix_DGRP_adult_central_brain"  #@param {type:"string"}
+RUNS = "DFB__303662__10x_scATAC_DG2_larval_brain, DFB__96a6e8__10x_scATAC_DG2_larval_brain"  #@param {type:"string"}
 GTF_FILE = "Drosophila_melanogaster.gtf.gz"  #@param {type:"string"}
 N_CLUSTERS = 20  #@param {type:"integer"}
+#@markdown **PLOIDY_FIT**: "per run" fits the ploidy model once across all cells of a run, so a cell type that is
+#@markdown mostly polyploid can be seen as such. "per cluster" fits each cluster separately, which re-baselines
+#@markdown a uniformly polyploid cluster to look diploid and will hide it.
+PLOIDY_FIT = "per run"  #@param ["per run", "per cluster"]
 MIN_FRAGMENTS = 2000  #@param {type:"integer"}
 MAX_FRAGMENTS = 60000  #@param {type:"integer"}
 GENES_OF_INTEREST = "geminin, dup, Cdc6, Orc1"  #@param {type:"string"}

@@ -8,9 +8,10 @@ except ImportError:
 
 BASE_URL = "https://flybrain.aertslab.org/downloads/cellRanger/"  #@param {type:"string"}
 DATA_DIR = "/content/drive/MyDrive/Colab Notebooks/route_b_fly"  #@param {type:"string"}
-#@markdown Leave **RUNS** empty the first time: Cell 2 lists what is available. Then type the run names you want
-#@markdown (comma-separated) and run Cell 3.
-RUNS = ""  #@param {type:"string"}
+#@markdown **RUNS** is pre-filled with the two larval brain runs (about 660 MB), which carry the known polyploid
+#@markdown surface glia used as a positive control. Just run all three cells.
+#@markdown To choose different runs, clear RUNS, run Cells 1 and 2 to see the full list, then type the names here.
+RUNS = "DFB__303662__10x_scATAC_DG2_larval_brain, DFB__96a6e8__10x_scATAC_DG2_larval_brain"  #@param {type:"string"}
 DATA_DIR = os.environ.get("ROUTE_B_DATA", DATA_DIR)
 if DATA_DIR.startswith("/content/drive"):
     from google.colab import drive
