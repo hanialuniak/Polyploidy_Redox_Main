@@ -93,6 +93,20 @@ print(f"\nGene filter: {before:,} -> {len(pb):,} genes (at least {MIN_COUNTS_PER
 zero_sg = int((pb[sg_cols] == 0).any(axis=1).sum())
 print(f"   {zero_sg:,} of them are absent from one gland window - usually the point, but their fold changes "
       f"rest on few counts, so read the gene tables with that in mind")
+# Diagnostic: what are these cells actually expressing? If the annotation is right, the top genes in the
+# late gland window should look like a secretory gland. If it is wrong, nothing below can be trusted.
+sg_late = [c for c in sg_cols if "late" in c][0]
+raw = pd.DataFrame(sums, index=rows, columns=groups).groupby(level=0).sum()
+print(f"\nTop 20 genes by counts in '{sg_late}':")
+display(raw[sg_late].sort_values(ascending=False).head(20).astype(int).to_frame("counts"))
+DIAG = "Sec61beta Sec61alpha Srp54 Sec31 zetaCOP Sar1 Sec23 CrebA fkh sage Pasilla hth CycB polo stg Hsc70-3 Pdi".split()
+have = [g for g in DIAG if g in raw.index]
+print("Raw counts for the control genes (before any filtering):")
+display(raw.loc[have].astype(int))
+gone = [g for g in DIAG if g not in raw.index]
+if gone:
+    print("Not present in the matrix under these names:", ", ".join(gone))
+
 lg = np.log(pb.replace(0, np.nan)); ref = lg.mean(axis=1)
 size = np.exp(lg[ref.notna()].sub(ref[ref.notna()], axis=0).median())
 L = np.log2(pb / size / pb.sum().mean() * 1e6 + 1)
