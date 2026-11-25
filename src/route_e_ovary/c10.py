@@ -89,12 +89,31 @@ fc_gl = Lg.xs(GENDO, level=1, axis=1).mean(axis=1) - Lg.xs(GMIT, level=1, axis=1
 print(f"\nGermline pseudobulk: {len(lab)} groups, {len(Lg):,} genes expressed in all of them")
 
 # Positive control: nurse cells must look less mitotic and more endoreplicated than germarial cysts
-mitg = [g for g in MARKERS["mitotic (cycling)"].split() if g in fc_gl.index]
-print(f"Positive control, mitotic genes in nurse cells vs germarium: {fc_gl.loc[mitg].median():+.2f} "
-      f"({len(mitg)} genes)")
-if fc_gl.loc[mitg].median() > -0.2:
-    print("WARNING: mitotic genes do not fall in the nurse cell group. The germline split is probably wrong, "
-          "so treat everything below as uninterpretable.")
+# The control has to be strict. Germarial cysts divide; nurse cells never do, so M-phase genes should fall
+# steeply between them. A shallow fall means both groups are endocycling - that is, early against late nurse
+# cells - and that comparison is NOT the mitotic-to-endocycle switch this cell exists to test.
+mitg = [g for g in MPHASE if g in fc_gl.index]
+drop = float(fc_gl.loc[mitg].median()) if mitg else float("nan")
+print(f"\nPositive control, M-phase genes in nurse cells vs germarium: {drop:+.2f} ({len(mitg)} genes)")
+_bam = resolve("bam", set(genes))
+if _bam and _bam in gpos:
+    bi = gpos[_bam]
+    for r in (GMIT, GENDO):
+        col = X[np.flatnonzero((cells.gl_role == r).to_numpy())][:, bi]
+        print(f"   cells expressing {_bam}: {r} {100 * float((col.toarray().ravel() > 0).mean()):.1f}%")
+GERMLINE_USABLE = bool(mitg) and drop <= -0.8
+if not GERMLINE_USABLE:
+    print("""
+WARNING - the germline comparison did not pass its control, so DO NOT read the verdicts below as
+follicle-versus-germline. M-phase genes barely fall, which means both germline groups are almost certainly
+endocycling already: this is early against late nurse cells, not germarium against nurse cells. A true
+germarium is a small structure and many ovary libraries barely sample it.
+What to try, in order:
+  1. Raise N_CLUSTERS in Cell 1 and run again - a germarial cluster is often hidden inside a larger one.
+  2. Run the other atlas. GSE136162 has three libraries and samples the germarium better.
+  3. If neither separates a dividing germline population, this dataset cannot answer the question and the
+     follicle-cell result has to stand on its own.
+""")
 
 levg = Lg.mean(axis=1)
 binsg = pd.qcut(levg.rank(method="first"), 10, labels=False)
@@ -147,8 +166,12 @@ def verdict(fp, gp):
 
 tab_k["verdict"] = [verdict(f, g) for f, g in zip(tab_k.follicle_pct, tab_k.germline_pct)]
 tab_k = tab_k[["follicle", "follicle_pct", "germline", "germline_pct", "verdict"]]
-print("\nGene by gene. Each lineage is judged against its own genome, so a value near zero reads as flat "
-      "rather than as agreement:")
+hdr = ("\nGene by gene. Each lineage is judged against its own genome, so a value near zero reads as flat "
+       "rather than as agreement:")
+if not GERMLINE_USABLE:
+    hdr += ("\n*** The control above did not pass, so the 'germline' column is early vs late nurse cells, not "
+            "the switch. Every verdict in this table is unreliable until that is fixed. ***")
+print(hdr)
 display(tab_k.round(2))
 print("""
 How to read this. A change that appears in BOTH lineages tracks the mitotic-to-endocycle switch itself, because
