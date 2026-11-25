@@ -26,6 +26,23 @@ EARLY_GL = "bam bgcn".split()
 #@markdown germarium cluster ids here, comma separated, and run this cell again.
 GERMARIUM_CLUSTERS = ""  #@param {type:"string"}
 
+# When clustering resolves only one germline population there is nothing to split by cluster. Fall back to
+# ranking the germline CELLS themselves by M-phase score and comparing the top and bottom thirds. This is
+# weaker than an independent split - the groups are defined by a score rather than found - but the redox
+# genes are not in that score, and the same strict control still has to pass for anything to be read.
+PER_CELL_SPLIT = len(g_clusters) < 2
+if PER_CELL_SPLIT:
+    print(f"\nOnly one germline cluster, so splitting the {int(gl_cells.sum()):,} germline cells themselves "
+          "by M-phase score (top third against bottom third). Weaker than a cluster split: read the control "
+          "below before anything else.")
+    mcell = pd.Series(score(MPHASE)[0])[gl_cells]
+    hi, lo = np.quantile(mcell, [2 / 3, 1 / 3])
+    cells["gl_role"] = None
+    cells.loc[gl_cells & (pd.Series(score(MPHASE)[0]) >= hi).to_numpy(), "gl_role"] = "mitotic germline (germarium)"
+    cells.loc[gl_cells & (pd.Series(score(MPHASE)[0]) <= lo).to_numpy(), "gl_role"] = "endocycling germline (nurse cells)"
+    display(cells[cells.gl_role.notna()].groupby("gl_role").agg(
+        cells=("gl_role", "size"), median_counts=("n_counts", "median")).round(0))
+
 gm = pd.Series(score(MPHASE)[0]).groupby(cells.cluster.to_numpy()).mean().reindex(g_clusters)
 ge = pd.Series(score(EARLY_GL)[0]).groupby(cells.cluster.to_numpy()).mean().reindex(g_clusters)
 n_counts = cells.groupby("cluster").n_counts.median().reindex(g_clusters)
@@ -33,7 +50,9 @@ zm = (gm - gm.mean()) / (gm.std() or 1)
 ze = (ge - ge.mean()) / (ge.std() or 1)
 
 forced = [c.strip() for c in GERMARIUM_CLUSTERS.split(",") if c.strip()]
-if forced:
+if PER_CELL_SPLIT:
+    grole = {}
+elif forced:
     grole = {cl: ("mitotic germline (germarium)" if cl in forced else "endocycling germline (nurse cells)")
              for cl in g_clusters}
     print("Using the clusters you named as germarium:", forced)
@@ -48,11 +67,13 @@ else:
     if len(g_clusters) > 2 and (gm.max() - gm.min()) < 1e-9:
         raise StopHere("The germline clusters do not differ in M-phase gene expression at all, so they cannot "
                        "be split. Raise N_CLUSTERS in Cell 1.")
-display(pd.DataFrame({"role": pd.Series(grole), "Mphase_z": zm.round(2), "bam_z": ze.round(2),
-                      "median_counts": n_counts.round(0),
-                      "cells": cells.cluster.value_counts().reindex(g_clusters)}))
-_g = [cl for cl in g_clusters if grole[cl].startswith("mitotic")]
-_n = [cl for cl in g_clusters if grole[cl].startswith("endocycling")]
+if not PER_CELL_SPLIT:
+    display(pd.DataFrame({"role": pd.Series(grole), "Mphase_z": zm.round(2), "bam_z": ze.round(2),
+                          "median_counts": n_counts.round(0),
+                          "cells": cells.cluster.value_counts().reindex(g_clusters)}))
+    cells["gl_role"] = cells.cluster.map(grole)
+_g = [cl for cl in g_clusters if grole.get(cl, "").startswith("mitotic")]
+_n = [cl for cl in g_clusters if grole.get(cl, "").startswith("endocycling")]
 if _g and _n and ze.notna().any() and ze[_g].mean() < ze[_n].mean():
     print("NOTE: bam is not higher in the group called germarium. bam is on in only a handful of cells, so this "
           "often happens and is not by itself a problem; but if the M-phase separation is also weak, set "
@@ -60,7 +81,6 @@ if _g and _n and ze.notna().any() and ze[_g].mean() < ze[_n].mean():
 if _g and _n and n_counts[_n].mean() < n_counts[_g].mean():
     print("NOTE: the group called nurse cells does not have more counts per cell than the germarium group. "
           "Nurse cells are far larger, so check the split before trusting the result.")
-cells["gl_role"] = cells.cluster.map(grole)
 GMIT, GENDO = "mitotic germline (germarium)", "endocycling germline (nurse cells)"
 n_ok = [r for r in (GMIT, GENDO) if (cells.gl_role == r).sum() >= 30]
 if len(n_ok) < 2:
