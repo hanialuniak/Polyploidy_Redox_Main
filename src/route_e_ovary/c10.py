@@ -15,24 +15,51 @@ if gl_cells.sum() < 100:
 g_clusters = [cl for cl in zt.index if zt.loc[cl, gl_col] >= 0.5]
 print(f"Germline clusters: {g_clusters}  ({int(gl_cells.sum()):,} cells)")
 
-# Rank WITHIN the germline, exactly as the follicle cells were ranked within their own lineage.
-EARLY_GL = "bam nos vas Sxl stg".split()          # germarium: dividing cystocytes
-gmit, _ = score(MARKERS["mitotic (cycling)"].split())
-gear, _ = score(EARLY_GL)
-gm = pd.Series(gmit).groupby(cells.cluster.to_numpy()).mean().reindex(g_clusters)
-ge = pd.Series(gear).groupby(cells.cluster.to_numpy()).mean().reindex(g_clusters)
-gm = (gm - gm.mean()) / (gm.std() or 1)
-ge = (ge - ge.mean()) / (ge.std() or 1)
-grole = {}
-for cl in g_clusters:
-    if gm[cl] > 0 and ge[cl] > 0:
-        grole[cl] = "mitotic germline (germarium)"
-    elif gm[cl] < 0 and ge[cl] < 0:
-        grole[cl] = "endocycling germline (nurse cells)"
-    else:
-        grole[cl] = "germline, unclear stage"
-display(pd.DataFrame({"role": pd.Series(grole), "mitotic_z": gm.round(2), "early_z": ge.round(2),
+# Split the germline on M PHASE alone. Nurse cells endocycle, so they run S phase repeatedly and express
+# PCNA and the Mcm genes; what they never do is divide. So S-phase genes cannot tell the two apart and
+# M-phase and cytokinesis genes can. (The follicle-cell marker set mixes the two, which is why it was wrong
+# here.) bam marks germarial cysts, but it is on in only a few cells, so it is a check and not a requirement:
+# vas, nos and Sxl are pan-germline and are higher in nurse cells simply because those cells are enormous.
+MPHASE = "polo aurB pav Incenp CycB Det Sak Cks30A".split()
+EARLY_GL = "bam bgcn".split()
+#@markdown Leave empty to split automatically. If the automatic split looks wrong in the table below, put the
+#@markdown germarium cluster ids here, comma separated, and run this cell again.
+GERMARIUM_CLUSTERS = ""  #@param {type:"string"}
+
+gm = pd.Series(score(MPHASE)[0]).groupby(cells.cluster.to_numpy()).mean().reindex(g_clusters)
+ge = pd.Series(score(EARLY_GL)[0]).groupby(cells.cluster.to_numpy()).mean().reindex(g_clusters)
+n_counts = cells.groupby("cluster").n_counts.median().reindex(g_clusters)
+zm = (gm - gm.mean()) / (gm.std() or 1)
+ze = (ge - ge.mean()) / (ge.std() or 1)
+
+forced = [c.strip() for c in GERMARIUM_CLUSTERS.split(",") if c.strip()]
+if forced:
+    grole = {cl: ("mitotic germline (germarium)" if cl in forced else "endocycling germline (nurse cells)")
+             for cl in g_clusters}
+    print("Using the clusters you named as germarium:", forced)
+else:
+    # Rank on M phase and cut at the largest gap, which puts the dividing clusters on one side however many
+    # clusters there are. With two clusters this is simply the split between them.
+    srt = gm.sort_values()
+    gaps = srt.diff().iloc[1:]
+    cutm = srt.loc[gaps.idxmax()] if len(srt) > 1 and gaps.notna().any() else gm.median()
+    grole = {cl: ("mitotic germline (germarium)" if gm[cl] >= cutm else "endocycling germline (nurse cells)")
+             for cl in g_clusters}
+    if len(g_clusters) > 2 and (gm.max() - gm.min()) < 1e-9:
+        raise StopHere("The germline clusters do not differ in M-phase gene expression at all, so they cannot "
+                       "be split. Raise N_CLUSTERS in Cell 1.")
+display(pd.DataFrame({"role": pd.Series(grole), "Mphase_z": zm.round(2), "bam_z": ze.round(2),
+                      "median_counts": n_counts.round(0),
                       "cells": cells.cluster.value_counts().reindex(g_clusters)}))
+_g = [cl for cl in g_clusters if grole[cl].startswith("mitotic")]
+_n = [cl for cl in g_clusters if grole[cl].startswith("endocycling")]
+if _g and _n and ze.notna().any() and ze[_g].mean() < ze[_n].mean():
+    print("NOTE: bam is not higher in the group called germarium. bam is on in only a handful of cells, so this "
+          "often happens and is not by itself a problem; but if the M-phase separation is also weak, set "
+          "GERMARIUM_CLUSTERS by hand from the table above.")
+if _g and _n and n_counts[_n].mean() < n_counts[_g].mean():
+    print("NOTE: the group called nurse cells does not have more counts per cell than the germarium group. "
+          "Nurse cells are far larger, so check the split before trusting the result.")
 cells["gl_role"] = cells.cluster.map(grole)
 GMIT, GENDO = "mitotic germline (germarium)", "endocycling germline (nurse cells)"
 n_ok = [r for r in (GMIT, GENDO) if (cells.gl_role == r).sum() >= 30]
