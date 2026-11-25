@@ -24,6 +24,8 @@ GTF_PATH = os.environ.get("ROUTE_F_GTF", GTF_PATH)
 #@markdown Minimum raw counts a gene needs in EVERY pseudobulk group. The salivary gland groups hold only a
 #@markdown few hundred cells, so a high value here silently removes well-measured genes.
 MIN_COUNTS_PER_GROUP = 5  #@param {type:"integer"}
+#@markdown Minimum counts summed across all four groups, which keeps the ratios stable.
+MIN_TOTAL_COUNTS = 50  #@param {type:"integer"}
 N_RANDOM_SETS = 2000  #@param {type:"integer"}
 SEED = 1  #@param {type:"integer"}
 

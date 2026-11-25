@@ -78,10 +78,21 @@ if len(low):
 # instead, which keeps abundant genes like Sec61beta and the mitotic set that a CPM floor removed.
 before = len(pb)
 ALL_GENES = set(pb.index)   # kept so Cell 5 can say whether a missing gene was absent or filtered out
-keep = (pb >= MIN_COUNTS_PER_GROUP).all(axis=1) & ((pb / pb.sum() * 1e6 >= 1).all(axis=1))
+# Do NOT require expression in every group: a gene switched on across the window is near zero in the early
+# gland group by definition, so an all-groups rule deletes exactly what this comparison exists to find.
+# Ask instead that the gene is really expressed SOMEWHERE in the gland and SOMEWHERE in the background,
+# with enough total signal to give a stable ratio.
+sg_cols = [c for c in pb.columns if c.startswith("salivary gland")]
+oth_cols = [c for c in pb.columns if c not in sg_cols]
+keep = ((pb[sg_cols].max(axis=1) >= MIN_COUNTS_PER_GROUP) &
+        (pb[oth_cols].max(axis=1) >= MIN_COUNTS_PER_GROUP) &
+        (pb.sum(axis=1) >= MIN_TOTAL_COUNTS))
 pb = pb[keep]
-print(f"\nGene filter: {before:,} -> {len(pb):,} genes "
-      f"(at least {MIN_COUNTS_PER_GROUP} counts and 1 CPM in every group)")
+print(f"\nGene filter: {before:,} -> {len(pb):,} genes (at least {MIN_COUNTS_PER_GROUP} counts in one gland "
+      f"group AND one background group, and {MIN_TOTAL_COUNTS} counts in total)")
+zero_sg = int((pb[sg_cols] == 0).any(axis=1).sum())
+print(f"   {zero_sg:,} of them are absent from one gland window - usually the point, but their fold changes "
+      f"rest on few counts, so read the gene tables with that in mind")
 lg = np.log(pb.replace(0, np.nan)); ref = lg.mean(axis=1)
 size = np.exp(lg[ref.notna()].sub(ref[ref.notna()], axis=0).median())
 L = np.log2(pb / size / pb.sum().mean() * 1e6 + 1)
