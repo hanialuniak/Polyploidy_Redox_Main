@@ -81,9 +81,11 @@ open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx_rows"), "w").write(
 open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx_cols"), "w").write(
     "".join(f"{c}\n" for c in names))
 with open(os.path.join(d, f"ExpDesign-{acc}.tsv"), "w") as h:
-    h.write("Assay\tSample Characteristic[developmental stage]\tFactor Value[inferred cell type - authors labels]\n")
+    # the real file uses normalised names with underscores, and carries ontology columns alongside
+    h.write("id\tdevelopmental_stage\tinferred_cell_type_-_authors_labels\t"
+            "inferred_cell_type_-_authors_labels_ontology\tdevelopmental_stage_ontology\n")
     for c, (ct, stage) in zip(names, meta):
-        h.write(f"{c}\t{stage}\t{ct}\n")
+        h.write(f"{c}\t{stage}\t{ct}\tFBbt:0000000\tFBdv:0000000\n")
 
 gtf = os.path.join(out, "Drosophila_melanogaster.gtf.gz")
 with gzip.open(gtf, "wt") as h:
