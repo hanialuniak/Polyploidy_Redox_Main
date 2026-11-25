@@ -1,14 +1,27 @@
 #@title Cell 4 - Stream the matrix into pseudobulk (a few minutes; the full matrix is never held in memory)
+# The matrix row order is defined by the PLAIN rows file. The decorated file is only a lookup from id to
+# symbol: its rows are not guaranteed to be in the same order, so it must be keyed by id, never zipped
+# positionally. Doing that wrongly renames every gene after its neighbour and silently corrupts everything.
+row_ids = [l.split("\t")[0].strip() for l in open(ROWS) if l.strip()]
 if DEC:
-    # column 2 of the decorated file is the gene symbol; fall back to the id where it is blank
-    rows = []
+    dec = {}
     for l in open(DEC):
         if not l.strip():
             continue
         f = l.rstrip("\n").split("\t")
-        rows.append((f[1].strip() if len(f) > 1 and f[1].strip() else f[0].strip()))
+        if f[0].strip():
+            dec[f[0].strip()] = (f[1].strip() if len(f) > 1 and f[1].strip() else f[0].strip())
+    rows = [dec.get(i, i) for i in row_ids]
+    hit = sum(1 for i in row_ids if i in dec)
+    print(f"Gene symbols: {hit:,} of {len(row_ids):,} ids matched in the decorated file")
+    dec_ids = [l.split("\t")[0].strip() for l in open(DEC) if l.strip()]
+    if dec_ids != row_ids:
+        print("   (the decorated file is in a different order from the matrix, which is why it is keyed by id)")
+    if hit < 0.5 * len(row_ids):
+        print("   WARNING: most ids did not match, so symbols are unreliable; falling back to the ids")
+        rows = row_ids
 else:
-    rows = [l.split("\t")[0].strip() for l in open(ROWS) if l.strip()]          # genes
+    rows = row_ids
 cols = [l.split("\t")[0].strip() for l in open(COLS) if l.strip()]          # cells
 print(f"Matrix index: {len(rows):,} rows x {len(cols):,} columns")
 
@@ -106,6 +119,18 @@ display(raw.loc[have].astype(int))
 gone = [g for g in DIAG if g not in raw.index]
 if gone:
     print("Not present in the matrix under these names:", ", ".join(gone))
+
+# Sanity check: a few genes that must be abundant in any embryonic tissue. If these are near zero the gene
+# names are not lined up with the matrix and nothing downstream means anything.
+SANITY = "Act5C RpL32 alphaTub84B Hsc70-3 eEF1alpha1 Ef1alpha48D".split()
+sane = [g for g in SANITY if g in raw.index]
+if sane:
+    tot = raw.loc[sane].sum(axis=1)
+    print("\nSanity check, total counts for genes that must be abundant:")
+    print("   " + ", ".join(f"{g}={int(v):,}" for g, v in tot.items()))
+    if tot.max() < 10000:
+        print("   WARNING: all of these are near zero across 295,756 cells, which cannot be biological. "
+              "The gene names are probably not aligned to the matrix rows - stop and check before reading on.")
 
 lg = np.log(pb.replace(0, np.nan)); ref = lg.mean(axis=1)
 size = np.exp(lg[ref.notna()].sub(ref[ref.notna()], axis=0).median())

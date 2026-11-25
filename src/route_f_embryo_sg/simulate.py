@@ -79,8 +79,11 @@ with open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx"), "w") as h:
 open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx_rows"), "w").write(
     "".join(f"{i}\t{i}\n" for i in ids))
 # EBI also ships a decorated rows file: id in column 1, gene symbol in column 2
+# deliberately shuffled: the decorated file is a lookup, not a parallel array. Reading it positionally
+# renames every gene after its neighbour, which is exactly the bug this guards against.
+_dec = sorted(genes, key=lambda g: sym2id[g])[::-1]
 open(os.path.join(d, f"{acc}.aggregated_filtered_counts.decorated.mtx_rows"), "w").write(
-    "".join(f"{sym2id[g]}\t{g}\n" for g in genes))
+    "".join(f"{sym2id[g]}\t{g}\n" for g in _dec))
 open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx_cols"), "w").write(
     "".join(f"{c}\n" for c in names))
 with open(os.path.join(d, f"ExpDesign-{acc}.tsv"), "w") as h:
