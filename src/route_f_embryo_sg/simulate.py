@@ -78,6 +78,9 @@ with open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx"), "w") as h:
         h.write(f"{i + 1} {j + 1} {int(M[i, j])}\n")
 open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx_rows"), "w").write(
     "".join(f"{i}\t{i}\n" for i in ids))
+# EBI also ships a decorated rows file: id in column 1, gene symbol in column 2
+open(os.path.join(d, f"{acc}.aggregated_filtered_counts.decorated.mtx_rows"), "w").write(
+    "".join(f"{sym2id[g]}\t{g}\n" for g in genes))
 open(os.path.join(d, f"{acc}.aggregated_filtered_counts.mtx_cols"), "w").write(
     "".join(f"{c}\n" for c in names))
 with open(os.path.join(d, f"ExpDesign-{acc}.tsv"), "w") as h:
