@@ -13,7 +13,10 @@ PROGRAMMES = {
     "EXPLORE: licensing and re-replication": "geminin dup Cdc6 Orc1 Mcm2 Mcm3 dpa Mcm5 Mcm6 Mcm7 CycE E2f1 Myc",
     "EXPLORE: p53 / DNA damage": "p53 Ku80 Irbp lok mei-41 tefu rad50 Xrp1 spn-A mus304",
     "CONTROL: heat shock": "Hsp70Aa Hsp83 Hsp68 Hsp27 Hsp26 Hsp23 DnaJ-1 Hsf",
-    "CONTROL: immediate-early genes": "Hr38 sr kay Jra puc CrebA",
+    # CrebA was removed from this control set. It is the master regulator of secretory capacity in flies, so in a
+    # tissue that is becoming secretory it is not a generic-stress gene at all; leaving it in made the stress
+    # control move for a biological reason and so weakened every comparison judged against it.
+    "CONTROL: immediate-early genes": "Hr38 sr kay Jra puc",
     "CONTROL: housekeeping": "Act5C alphaTub84B RpL32 Gapdh1 Tbp eIF4A Pgk Ef1alpha48D",
 }
 # Some genes are listed under a different name in the annotation, so each one is looked up under its synonyms too.
