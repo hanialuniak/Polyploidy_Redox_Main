@@ -7,22 +7,21 @@ Last updated: 24 November 2026.
 No redox *programme* tracks polyploidy in any dataset tested, and four working positive controls
 say the tests would have found one. The association that recurs instead is DNA damage and p53.
 
-Two mechanistic leads survive. The first is from the fly ovary, where the ER protein-folding
-machinery rises sharply at the mitotic-to-endocycle switch — including `Ero1L`, which generates
-one H₂O₂ per disulfide — while `Jafrac1` (cytosolic peroxiredoxin) and `Gclc` (glutathione
-synthesis) fall, and `Jafrac2` (the ER peroxiredoxin) stays flat.
+**The redox leads did not survive the germline control, and the honest headline is now
+negative.** The fly ovary shows a large ER protein-folding rise at the mitotic-to-endocycle
+switch, with `Jafrac1` and `Gclc` falling and `Jafrac2` flat. Comparing the germline, which makes
+the same switch in the same egg chambers without becoming secretory, shows **every one of those
+changes is specific to follicle cells** and therefore tracks secretory differentiation, not
+endoreplication. See "The germline control" below for the numbers.
 
-The second is newer. **`Jafrac1`, the cytosolic peroxiredoxin, falls in all four
-mitotic-to-endocycle comparisons available**: −0.27 and −0.27 in S2 cells pushed into endocycles
-by CycA or Myb knockdown, −1.06 (2nd percentile) in the Rust ovary atlas and −0.43 (18th) in
-Jevitt. S2 cells are the clean case, because identity is held constant. In the same S2
-comparison the cytosolic removal class as a whole falls (−0.45, 6.8th percentile, p = 0.009 with
-Myb) and `Duox` rises to the 98th percentile.
+Only two things change in both lineages: replication licensing, including `geminin`, which is
+expected and serves as a positive control; and `Rrp1`, the fly APEX1, which is the most extreme
+consistent change anywhere in the project and remains unexplained.
 
-**That class-level claim does not generalise, and `Jafrac1` alone should be quoted.** The class
-falls in three of four comparisons but rises in Jevitt (+0.68), because `Prx2540-1` (+0.95) and
-`Prx2540-2` (+0.83) move opposite to the way they move in S2 (−0.51/−0.48 and −0.48/−0.65);
-neither was detected in Rust.
+So after eight datasets the position is: **no redox programme and no individual redox gene has
+been shown to track polyploidy once differentiation is controlled for.** Taken with the speed of
+the HyPer7 signal, the nulls argue that any coupling is post-translational rather than
+transcriptional — a constraint on the mechanism, not a failure.
 
 Neither lead is a transcriptional antioxidant response, which is why eight gene-set screens
 returned nothing. Taken with the speed of the HyPer7 signal, the nulls argue that the regulation
@@ -316,6 +315,62 @@ needed to separate the two.
   above records.
 - `Su(var)3-3` was not detected in either atlas, so the nuclear-source question is untestable in
   ovary. It was testable in Route D, where it failed.
+
+### The germline control (GSE136162)
+
+Follicle cells endocycle and differentiate into an eggshell-secreting epithelium over the same
+hours, so Route E alone cannot separate those. The germline can: cystocytes divide in the
+germarium and become endocycling nurse cells — the same switch, the same egg chambers, the same
+libraries, with a completely different differentiation programme and no eggshell.
+
+GSE136162 resolves a single germline cluster of 499 cells, so the split was made by ranking those
+cells on M-phase score and comparing the top and bottom thirds (167 each). That is weaker than an
+independent cluster split, but both controls passed and the comparison demonstrably has power:
+
+- **M-phase genes fall −1.08** between the groups, past the −0.8 threshold.
+- **`bam` is enriched 56.3% against 24.6%**, a 2.3-fold difference, so the groups really do differ
+  in germarial character.
+- **Licensing falls in both lineages** (−0.49 follicle, −0.59 germline, 12th percentile,
+  p = 0.002) — the expected positive control.
+- The germline contrast detects large changes where they exist: GSTs +0.95 (95th percentile,
+  p < 0.001) and ribosomal genes +0.81 (93rd percentile, p < 0.001). A null here is a real null.
+
+| Gene | Follicle | Germline | Reading |
+| --- | --- | --- | --- |
+| `Sec61beta` | +1.59 (99th pct) | +0.11 (60th) | follicle only |
+| `Hsc70-3` (BiP) | +1.16 (98th) | +0.03 (54th) | follicle only |
+| `Ero1L` | +0.50 (87th) | −0.21 (36th) | follicle only |
+| `Jafrac1` | −1.06 (2nd) | −0.06 (46th) | follicle only |
+| `Gclc` | −0.88 (4th) | +0.01 (52nd) | follicle only |
+| `Trx-2` / `Trxr-1` | −0.27 / −0.25 | −0.08 / +0.13 | follicle only |
+| `Cat` | −0.28 (22nd) | −0.13 (41st) | follicle only |
+| **`Rrp1`** | **−2.04 (0.4th)** | **−0.67 (9th)** | **both lineages** |
+| **`geminin`** | **−1.11 (1.7th)** | **−0.53 (15th)** | **both lineages** |
+
+**Consequence.** The ER folding rise, the `Jafrac1` fall and the `Gclc` fall are all absent from
+the germline. They are therefore properties of follicle cells becoming a secretory epithelium, not
+of entering an endocycle. This is the same conclusion the salivary gland and S2 pair reached, now
+reached inside the one tissue that was supposed to be free of that confound.
+
+It also withdraws the cross-system `Jafrac1` claim above: it falls in follicle cells and in S2
+cells, but not in the germline, which is the comparison that holds identity constant in vivo.
+
+**Caveats.** The germline captured in ovary scRNA-seq is biased toward small cells, because mature
+nurse cells reach 512C and are too large for droplet capture, so the "nurse cell" group may be
+earlier than its name suggests. The split is by score rather than by cluster. 167 cells per group.
+
+### Is `Jafrac2` flat, or unmeasurable?
+
+The ER imbalance claim needed `Jafrac2` to have been able to rise. It could: expression at the
+63rd percentile of all genes, detected in 52.4% of mitotic and 39.7% of endocycling cells —
+neither at ceiling nor too sparse to judge. So the flat value is real. But the per-library values
+disagree in sign (+0.64, −0.13, −0.27), so it is better described as "no consistent change" than
+as a measured zero.
+
+`Ero1L` is the weak link on the other side: expression in the **bottom 5%** of all genes, detected
+in only 11–13% of cells, which barely clears the sparsity threshold. The rise in ER folding load
+is the robust part of that story — and it does not need `Ero1L` transcript to rise, since more
+substrate through existing Ero1 generates more H₂O₂ regardless.
 
 **Cross-reference to Route D:** the `Jafrac1` fall here is the same direction as the significant
 fall in cytosolic peroxiredoxins when S2 cells are pushed into endocycles, which is the one
