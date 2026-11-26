@@ -19,9 +19,14 @@ expected and serves as a positive control; and `Rrp1`, the fly APEX1, which is t
 consistent change anywhere in the project and remains unexplained.
 
 So after eight datasets the position is: **no redox programme and no individual redox gene has
-been shown to track polyploidy once differentiation is controlled for.** Taken with the speed of
-the HyPer7 signal, the nulls argue that any coupling is post-translational rather than
-transcriptional — a constraint on the mechanism, not a failure.
+been shown to track polyploidy once differentiation is controlled for.**
+
+What that does and does not license. It rules out a *transcriptional* coupling of the kind these
+datasets can see, in the systems tested. It does not distinguish between two remaining
+possibilities: that polyploidy and redox state are not causally coupled at all, or that they are
+coupled post-translationally, through enzyme activity, oxidation state or localisation, which
+every dataset here is blind to. Choosing between those needs a measurement of activity rather than
+abundance; it cannot be settled from expression data.
 
 Neither lead is a transcriptional antioxidant response, which is why eight gene-set screens
 returned nothing. Taken with the speed of the HyPer7 signal, the nulls argue that the regulation
@@ -393,9 +398,16 @@ endocycling versus mitotic, not ploidy alone.
 
 ## Open questions
 
-1. Does H₂O₂ rise before or after entry into endoreplication?
-2. Is Ero1L the source of the H₂O₂ in polyploid cells?
-3. Does raised H₂O₂ act through licensing factors, and is Geminin protein redox-sensitive?
+1. Does H₂O₂ rise before or after entry into endoreplication? Nothing here can date it; every
+   dataset is cross-sectional.
+2. **How fast does the HyPer7 signal actually rise?** This has not been measured. A rate faster
+   than a round of endoreplication would argue against a replication-dependent cause; a slower one
+   would be consistent with it. Until it is measured, neither inference is available, and earlier
+   drafts of this document and of the PDF summaries wrongly treated a fast rise as established.
+3. Is Ero1L the source of the H₂O₂ in polyploid cells?
+4. Does raised H₂O₂ act through licensing factors, and is Geminin protein redox-sensitive?
+5. What explains `Rrp1`? It is the most extreme consistent change in the project and the only
+   non-licensing gene that survives the germline control.
 
 ## Supporting literature
 
