@@ -14,9 +14,12 @@ the same switch in the same egg chambers without becoming secretory, shows **eve
 changes is specific to follicle cells** and therefore tracks secretory differentiation, not
 endoreplication. See "The germline control" below for the numbers.
 
-Only two things change in both lineages: replication licensing, including `geminin`, which is
-expected and serves as a positive control; and `Rrp1`, the fly APEX1, which is the most extreme
-consistent change anywhere in the project and remains unexplained.
+What changes in both lineages is the replication licensing programme, which is expected and serves
+as a positive control (*p* = 0.002 as a set), and — once the germline side is calibrated against
+shuffled labels — a block of chromatin, satellite-DNA and nuclear-lamina genes, with `mre11` the
+one DNA-repair gene among them. `Rrp1`, the fly APEX1, has the largest effect size in the project
+and is shared on the face of it, but at *q* = 0.13 it does not clear FDR as a single gene; the same
+applies to `geminin` individually (*q* = 0.14) even though its programme passes.
 
 So after eight datasets the position is: **no redox programme and no individual redox gene has
 been shown to track polyploidy once differentiation is controlled for.**
@@ -308,7 +311,9 @@ needed to separate the two.
   the genome — while the folding machinery it serves is in the top 3–6% (`Sec61beta` +1.59 and
   +2.36, `Hsc70-3` +1.16 and +2.21). Since the salivary gland *does* scale `Jafrac2` up with its
   load, this failure to scale is specific to the switch, not to secretory cells.
-- **`Rrp1` is the most extreme consistent change anywhere in the project:** bottom 0.5% of all
+- **`Rrp1` has the largest consistent effect size anywhere in the project** (but see the
+  calibration note in the germline section: as a single gene it is *q* = 0.13 on the germline side,
+  so the effect size is large and the evidence that it is shared is not conclusive): bottom 0.5% of all
   genes in both atlases, and consistent across all three Rust libraries (−2.34, −1.82, −1.97).
   It also falls hard in the salivary gland (−2.49). Caveat: this is a replication-coupled repair
   enzyme and every one of these comparisons involves cells leaving the mitotic cycle, so
@@ -349,8 +354,35 @@ independent cluster split, but both controls passed and the comparison demonstra
 | `Gclc` | −0.88 (4th) | +0.01 (52nd) | follicle only |
 | `Trx-2` / `Trxr-1` | −0.27 / −0.25 | −0.08 / +0.13 | follicle only |
 | `Cat` | −0.28 (22nd) | −0.13 (41st) | follicle only |
-| **`Rrp1`** | **−2.04 (0.4th)** | **−0.67 (9th)** | **both lineages** |
-| **`geminin`** | **−1.11 (1.7th)** | **−0.53 (15th)** | **both lineages** |
+| **`Rrp1`** | **−2.04 (0.4th)** | **−0.67 (9th)** | **both lineages, q = 0.13** |
+| **`geminin`** | **−1.11 (1.7th)** | **−0.53 (15th)** | **both lineages, q = 0.14** |
+
+**Downgraded on 27 November 2026, after calibration.** The germline side of this table was later
+given a permutation null (Cell 13: germline labels shuffled within library, 200 times, per-gene
+*p* against a null pooled within expression deciles). Two things changed.
+
+First, the shared list as a whole is only partly real: 726 genes were called shared with the
+germline, against a median of 226 from shuffled labels, 95th percentile 339. The count is above
+chance (*p* = 0.005) but roughly a third of it is noise, and 242 genes survive at *q* < 0.10.
+
+Second, and this corrects the claim made above and in the summary PDF and slides, **neither `Rrp1`
+nor `geminin` clears FDR 0.10 as an individual gene**: `Rrp1` is *q* = 0.130 and `geminin` is
+*q* = 0.140. Both are suggestive and neither is significant, on 197 germline cells after stress
+matching. Note the distinction for `geminin`: the *licensing programme* as a set still falls in
+both lineages at *p* = 0.002, which is a better-powered test than any single gene, so the
+programme-level statement stands and the single-gene statement does not. For `Rrp1` there is no
+programme-level result to fall back on — the p53/DNA-damage set is *p* = 0.37.
+
+What does clear calibration is a block of chromatin, satellite-DNA and nuclear-lamina genes falling
+in both lineages: `HmgD`, `D1`, `Lam`, `ball`, `Det` (*q* = 0.076), `Df31`, `HipHop`, `HP4`,
+`mod(mdg4)`, `CtBP`, `Aos1`, `Bub3` (*q* = 0.08–0.09), with replication and repair machinery
+alongside (`RPA2`, `RfC4`, `dUTPase`, `Cdk1`, and `mre11` at *q* = 0.092, the one repair gene that
+does clear it). A few metal- and NADPH-handling genes rise in both (`MtnA` +0.94/+2.17, `Men`
++1.02/+1.89, `GstE1` +0.80/+0.90). **These themes were read out of a ranked list after the fact,
+so Cell 14 tests them as named sets against expression-matched random sets before any of them is
+treated as a finding.** Heterochromatin under-replication is well described in *Drosophila*
+polyploid tissue, which makes the chromatin block plausible — and plausibility is exactly what
+made the earlier redox leads survive longer than they deserved to.
 
 **Consequence.** The ER folding rise, the `Jafrac1` fall and the `Gclc` fall are all absent from
 the germline. They are therefore properties of follicle cells becoming a secretory epithelium, not
