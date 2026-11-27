@@ -1,6 +1,6 @@
 # Results
 
-Last updated: 24 November 2026.
+Last updated: 27 November 2026.
 
 ## Summary
 
@@ -417,12 +417,75 @@ flat here, rising with folding load in the salivary gland.
 **Caveat:** in this lineage ploidy and developmental stage rise together, so this is
 endocycling versus mitotic, not ploidy alone.
 
+## Route F — mouse heart (planned, not yet run)
+
+Added 26 November 2026. Rationale: the postnatal oxygen rise drives ROS, DNA damage and
+cardiomyocyte cell cycle exit (Puente et al. 2014, *Cell* 157:565), and cardiomyocyte polyploidy
+forms in the same window (about P3–P10). It is the best-characterised mammalian case where an
+oxygen/ROS shift and polyploidisation coincide.
+
+**How cardiomyocytes become polyploid — and why it differs from the fly tissues.** Mouse
+cardiomyocytes make a final S phase and mostly *fail cytokinesis* after nuclear division,
+giving binucleated 2×2n cells (about 80% of adult ventricular cardiomyocytes; about 3%
+mononuclear 2n, 5% mononuclear 4n). Human cardiomyocytes mostly stay mononuclear and become
+polyploid within one nucleus, 2n to 16n. Either way the cells enter M phase and fail it —
+endomitosis, not the M-phase-skipping endocycle of follicle cells, salivary glands or optic
+lobe. Treat the heart as a comparison, not a replica.
+
+### Prior in vivo evidence linking H₂O₂ to cardiomyocyte ploidy
+
+- Gan et al. 2019, *PLoS Genet* 15:e1008354 — mitochondrially targeted catalase (mCAT)
+  increased the mononuclear cardiomyocyte fraction on C57BL/6J and on the *Tnni3k*-null
+  background; additive with *Tnni3k* loss; did not change nuclear ploidy of mononuclear cells.
+  **No ROS was measured** and mCAT activity was not verified in these hearts — the gap a HyPer7
+  readout would fill.
+- Patterson et al. 2017, *Nat Genet* 49:1346 — mononuclear cardiomyocyte frequency varies
+  2.3–17.0% across 120 inbred strains (Hybrid Mouse Diversity Panel); *Tnni3k* is one causal gene.
+
+### Datasets, in priority order
+
+1. **GSE140851** (Windmueller et al. 2020, *Cell Rep* 30:3105) — bulk RNA-seq of FACS-sorted
+   mononucleated vs binucleated cardiomyocytes at E18.5, P7, adult; n = 3 per group. Closest
+   to the Route E design. Caveats: "mononucleated" includes mononuclear 4n; P7 binucleated
+   cells already look adult, so maturation (incl. mitochondrial biogenesis) is confounded with
+   nucleation. Analysis notebook: `RouteF_GSE140851.ipynb` (project copy in percent format:
+   `claude/routeF_GSE140851.py`) (positive control = mitotic/E2F genes lower in BiNuc;
+   sorting-stress control; expression-matched random sets; P7 rescored after regressing out the
+   adult-vs-E18.5 maturation axis; leave-one-gene-out flag, since with n = 3 a single noisy gene
+   made a 7-gene set significant on simulated noise). Tested on synthetic data only.
+2. **HMDP strain panel** — Patterson 2017 Supplementary Table 1 (mononuclear fraction per
+   strain) × GSE48760 (left ventricle transcriptomes, ~100 strains, control arm). Mouse analogue
+   of Route A, with in vivo ploidy. Check strain overlap and sex match first; adult bulk tissue,
+   long after ploidy is set.
+3. **Cui et al. 2020** (*Dev Cell* 53:102; protocol *STAR Protoc* 1:100049) — snRNA-seq of
+   FACS-sorted 2n and 4n cardiomyocyte nuclei, neonatal sham/MI. Separates nuclear ploidy from
+   nucleation. The related neonatal snRNA-seq series is GSE130699; confirm it holds the
+   ploidy-sorted libraries. Nuclear RNA under-represents mitochondrial transcripts.
+4. **Ploidy-stratified scRNA-seq at E16.5, P1, P5** (ZEB1 paper, *Basic Res Cardiol* 2023,
+   118:8) — brackets the oxygen switch, so speaks to "does H₂O₂ rise before or after?".
+   Accession not yet found.
+5. **C57BL/6J vs A/J ploidy dynamics** (bioRxiv 2022.09.15.508152) — two-strain replication
+   of item 2 if expression data exist.
+
+Low priority: Nakada et al. 2017 (*Nature* 541:222) and other hypoxia RNA-seq are whole-tissue
+with no ploidy readout. Puente et al. 2014 has no public dataset.
+
+**Expectation from adult studies:** Yekelchyk et al. 2019 (*Basic Res Cardiol* 114:36) found
+mono- and multinucleated adult cardiomyocyte transcriptomes highly similar; a Myh6-H2BmCh
+study found expression programmes independent of ploidy. As in the fly and liver routes, any
+signal is more likely in the neonatal windows than in adult tissue.
+
+**Status:** GEO is not reachable from the Claude workspace (proxy policy denial, 26 Nov 2026),
+so the notebook must be run locally, or the GSE140851 supplementary counts file attached.
+
 ## Why the public data show so little
 
 - **Wrong readout.** These datasets measure transcripts, proteins or chromatin. H₂O₂ level is
   set by enzyme activity, oxidation state and metabolic flux, none of which appear here.
 - **Dilution.** Polyploid cells are at most about 20% of the fly optic lobe.
 - **Different polyploidy.** Cancer lines and cultured hepatocytes double by failed division,
+  and cardiomyocytes likewise become polyploid by failed cytokinesis or endomitosis, which is not
+  the M-phase-skipping endocycle of follicle cells, salivary glands or optic lobe.
   not endocycling.
 - **Timing.** A redox change that triggers endoreplication may be gone once cells are polyploid.
 - **Confounders.** Cell size, zonation, doublets and dissociation stress each mimic or mask a
@@ -438,8 +501,15 @@ endocycling versus mitotic, not ploidy alone.
    drafts of this document and of the PDF summaries wrongly treated a fast rise as established.
 3. Is Ero1L the source of the H₂O₂ in polyploid cells?
 4. Does raised H₂O₂ act through licensing factors, and is Geminin protein redox-sensitive?
-5. What explains `Rrp1`? It is the most extreme consistent change in the project and the only
-   non-licensing gene that survives the germline control.
+5. What explains `Rrp1`? It has the largest consistent effect size in the project, but after
+   calibration it is *q* = 0.13 on the germline side, so whether it is genuinely shared between
+   the two lineages is unresolved rather than established.
+6. Does the chromatin, satellite-DNA and lamina block that survives calibration have anything to
+   do with the HyPer7 signal, or is it simply what an endocycling nucleus does? It is the one
+   programme-level change that passes in both lineages besides licensing, and it was found by
+   reading a ranked list, so it needs a second dataset before it is believed.
+7. In neonatal mouse cardiomyocytes (P1–P10), does HyPer7 ratio rise before cytokinesis fails,
+   and is it higher in cells that go on to binucleate? The mCAT result predicts yes.
 
 ## Supporting literature
 
@@ -454,3 +524,8 @@ endocycling versus mitotic, not ploidy alone.
   required for *Drosophila* ovulation.
 - Nandakumar et al. 2020, *eLife* — fly brains are 98–99% diploid at eclosion; polyploidy
   appears from day 7 and the optic lobe exceeds 20% polyploid cells at three weeks.
+- Puente et al. 2014, *Cell* 157:565 — postnatal ROS and DNA damage response drive
+  cardiomyocyte cell cycle exit; hypoxaemia and ROS scavenging prolong the proliferative window.
+- Nakada et al. 2017, *Nature* 541:222 — gradual systemic hypoxaemia reduces oxidative DNA
+  damage and reactivates adult cardiomyocyte mitosis.
+- Gan et al. 2019, *PLoS Genet* — mCAT raises mononuclear cardiomyocyte frequency (above).
