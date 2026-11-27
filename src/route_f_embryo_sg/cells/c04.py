@@ -1,5 +1,27 @@
 #@title Cell 4 - Stream the matrix into pseudobulk (a few minutes; the full matrix is never held in memory)
-rows = [l.split("\t")[0].strip() for l in open(ROWS) if l.strip()]          # genes
+# The matrix row order is defined by the PLAIN rows file. The decorated file is only a lookup from id to
+# symbol: its rows are not guaranteed to be in the same order, so it must be keyed by id, never zipped
+# positionally. Doing that wrongly renames every gene after its neighbour and silently corrupts everything.
+row_ids = [l.split("\t")[0].strip() for l in open(ROWS) if l.strip()]
+if DEC:
+    dec = {}
+    for l in open(DEC):
+        if not l.strip():
+            continue
+        f = l.rstrip("\n").split("\t")
+        if f[0].strip():
+            dec[f[0].strip()] = (f[1].strip() if len(f) > 1 and f[1].strip() else f[0].strip())
+    rows = [dec.get(i, i) for i in row_ids]
+    hit = sum(1 for i in row_ids if i in dec)
+    print(f"Gene symbols: {hit:,} of {len(row_ids):,} ids matched in the decorated file")
+    dec_ids = [l.split("\t")[0].strip() for l in open(DEC) if l.strip()]
+    if dec_ids != row_ids:
+        print("   (the decorated file is in a different order from the matrix, which is why it is keyed by id)")
+    if hit < 0.5 * len(row_ids):
+        print("   WARNING: most ids did not match, so symbols are unreliable; falling back to the ids")
+        rows = row_ids
+else:
+    rows = row_ids
 cols = [l.split("\t")[0].strip() for l in open(COLS) if l.strip()]          # cells
 print(f"Matrix index: {len(rows):,} rows x {len(cols):,} columns")
 
@@ -64,8 +86,52 @@ low = n_cells[n_cells < 25]
 if len(low):
     raise StopHere(f"These groups have too few cells to pseudobulk: {list(low.index)}.")
 
-# median-of-ratios, so that a few very high genes in one group cannot set the scale
-pb = pb[(pb / pb.sum() * 1e6 >= 5).all(axis=1)]
+# The salivary gland groups are small (a few hundred cells), so a CPM floor applied to every group throws
+# away genes that are perfectly well measured in the large ones. Require a few actual counts in each group
+# instead, which keeps abundant genes like Sec61beta and the mitotic set that a CPM floor removed.
+before = len(pb)
+ALL_GENES = set(pb.index)   # kept so Cell 5 can say whether a missing gene was absent or filtered out
+# Do NOT require expression in every group: a gene switched on across the window is near zero in the early
+# gland group by definition, so an all-groups rule deletes exactly what this comparison exists to find.
+# Ask instead that the gene is really expressed SOMEWHERE in the gland and SOMEWHERE in the background,
+# with enough total signal to give a stable ratio.
+sg_cols = [c for c in pb.columns if c.startswith("salivary gland")]
+oth_cols = [c for c in pb.columns if c not in sg_cols]
+keep = ((pb[sg_cols].max(axis=1) >= MIN_COUNTS_PER_GROUP) &
+        (pb[oth_cols].max(axis=1) >= MIN_COUNTS_PER_GROUP) &
+        (pb.sum(axis=1) >= MIN_TOTAL_COUNTS))
+pb = pb[keep]
+print(f"\nGene filter: {before:,} -> {len(pb):,} genes (at least {MIN_COUNTS_PER_GROUP} counts in one gland "
+      f"group AND one background group, and {MIN_TOTAL_COUNTS} counts in total)")
+zero_sg = int((pb[sg_cols] == 0).any(axis=1).sum())
+print(f"   {zero_sg:,} of them are absent from one gland window - usually the point, but their fold changes "
+      f"rest on few counts, so read the gene tables with that in mind")
+# Diagnostic: what are these cells actually expressing? If the annotation is right, the top genes in the
+# late gland window should look like a secretory gland. If it is wrong, nothing below can be trusted.
+sg_late = [c for c in sg_cols if "late" in c][0]
+raw = pd.DataFrame(sums, index=rows, columns=groups).groupby(level=0).sum()
+print(f"\nTop 20 genes by counts in '{sg_late}':")
+display(raw[sg_late].sort_values(ascending=False).head(20).astype(int).to_frame("counts"))
+DIAG = "Sec61beta Sec61alpha Srp54 Sec31 zetaCOP Sar1 Sec23 CrebA fkh sage Pasilla hth CycB polo stg Hsc70-3 Pdi".split()
+have = [g for g in DIAG if g in raw.index]
+print("Raw counts for the control genes (before any filtering):")
+display(raw.loc[have].astype(int))
+gone = [g for g in DIAG if g not in raw.index]
+if gone:
+    print("Not present in the matrix under these names:", ", ".join(gone))
+
+# Sanity check: a few genes that must be abundant in any embryonic tissue. If these are near zero the gene
+# names are not lined up with the matrix and nothing downstream means anything.
+SANITY = "Act5C RpL32 alphaTub84B Hsc70-3 eEF1alpha1 Ef1alpha48D".split()
+sane = [g for g in SANITY if g in raw.index]
+if sane:
+    tot = raw.loc[sane].sum(axis=1)
+    print("\nSanity check, total counts for genes that must be abundant:")
+    print("   " + ", ".join(f"{g}={int(v):,}" for g, v in tot.items()))
+    if tot.max() < 10000:
+        print("   WARNING: all of these are near zero across 295,756 cells, which cannot be biological. "
+              "The gene names are probably not aligned to the matrix rows - stop and check before reading on.")
+
 lg = np.log(pb.replace(0, np.nan)); ref = lg.mean(axis=1)
 size = np.exp(lg[ref.notna()].sub(ref[ref.notna()], axis=0).median())
 L = np.log2(pb / size / pb.sum().mean() * 1e6 + 1)

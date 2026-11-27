@@ -4,21 +4,37 @@ meta.columns = [c.strip() for c in meta.columns]
 print(f"Annotation table: {len(meta):,} rows x {meta.shape[1]} columns")
 
 
+#@markdown Leave these empty to find the columns automatically. If that fails, the cell prints every column
+#@markdown name; copy the right ones in here and run the cell again.
+CELL_TYPE_COLUMN = ""  #@param {type:"string"}
+STAGE_COLUMN = ""  #@param {type:"string"}
+
+# Column names arrive differently depending on where the file came from: "Sample Characteristic[cell type]",
+# "inferred_cell_type_-_authors_labels", and so on. Match against a flattened version of each name so that
+# spaces, underscores, hyphens and brackets all read the same.
+flat = {c: re.sub(r"[^a-z0-9]+", " ", c.lower()).strip() for c in meta.columns}
+
+
 def pick_column(patterns, exclude=()):
     """Find the column whose name matches, preferring annotated values over ontology URLs."""
     for pat in patterns:
         hits = [c for c in meta.columns
-                if re.search(pat, c, re.I) and "ontology" not in c.lower()
-                and not any(re.search(x, c, re.I) for x in exclude)]
+                if re.search(pat, flat[c]) and "ontology" not in flat[c]
+                and not any(re.search(x, flat[c]) for x in exclude)]
         hits = [c for c in hits if meta[c].notna().any() and meta[c].nunique() > 1]
         if hits:
             return sorted(hits, key=lambda c: meta[c].nunique())[-1]
     return None
 
 
-cell_col = pick_column([r"inferred cell type.*author", r"inferred cell type", r"\bcell type\b", r"annotat"])
-stage_col = pick_column([r"developmental stage", r"\bstage\b", r"\bage\b", r"time.?point"])
-id_col = next((c for c in meta.columns if re.search(r"^assay$|cell.?id|barcode|run", c, re.I)), meta.columns[0])
+cell_col = CELL_TYPE_COLUMN.strip() or pick_column(
+    [r"inferred cell type.*author", r"inferred cell type", r"\bcell type\b", r"annotat", r"cluster"])
+stage_col = STAGE_COLUMN.strip() or pick_column(
+    [r"developmental stage", r"\bstage\b", r"\bage\b", r"time ?point", r"\bhours?\b"])
+id_col = next((c for c in meta.columns if re.search(r"^assay$|^id$|cell id|barcode|^run$", flat[c])), meta.columns[0])
+for nm, c in (("CELL_TYPE_COLUMN", cell_col), ("STAGE_COLUMN", stage_col)):
+    if c and c not in meta.columns:
+        raise StopHere(f"{nm} is set to {c!r}, which is not a column in this table.")
 print(f"Cell-type column: {cell_col!r}\nStage column:     {stage_col!r}\nCell id column:   {id_col!r}")
 if cell_col is None or stage_col is None:
     print("\nColumns available:"); print("\n".join("   " + c for c in meta.columns))
@@ -30,10 +46,24 @@ print(f"\nStage values ({meta[stage_col].nunique()}):")
 display(meta[stage_col].value_counts())
 
 
+# Some tables give hours after egg laying rather than stages. At 25 C the boundary between stage 12 and
+# stage 13 falls at about 9h20, so that is where the two windows are cut.
+IN_HOURS = bool(re.search(r"\bhours?\b|\bh ael\b|\btime\b", flat.get(stage_col, "")) or
+                meta[stage_col].astype(str).str.contains(r"\bh\b|hour", case=False, na=False).mean() > 0.5)
+if IN_HOURS:
+    print("\nThe stage column looks like hours after egg laying, so the windows are cut at 9h20 "
+          "(the stage 12 to stage 13 boundary at 25 C).")
+
+
 def window_of(v):
-    """Stages 10-12 are the early window, 13-16 the late one. Written to accept 'stage 13-16' or 'stage 14'."""
-    nums = [int(n) for n in re.findall(r"\d+", str(v))]
-    nums = [n for n in nums if 1 <= n <= 17]
+    """Stages 10-12 are the early window, 13-16 the late one. Accepts 'stage 13-16', 'stage 14' or hours."""
+    nums = [float(n) for n in re.findall(r"\d+(?:\.\d+)?", str(v))]
+    if IN_HOURS:
+        if not nums:
+            return None
+        mid = sum(nums) / len(nums)
+        return "early (stages 10-12)" if mid < 9.33 else "late (stages 13-16)"
+    nums = [int(n) for n in nums if 1 <= n <= 17]
     if not nums:
         return None
     lo, hi = min(nums), max(nums)
@@ -45,6 +75,10 @@ def window_of(v):
 
 
 meta["window"] = meta[stage_col].map(window_of)
+if meta.window.notna().sum() == 0:
+    print("\nStage values seen:", list(meta[stage_col].dropna().unique())[:25])
+    raise StopHere("No cell could be assigned to an early or late window from the stage column. The values are "
+                   "printed above; send them to me and I will set the rule for this table.")
 meta["is_sg"] = meta[cell_col].astype(str).str.contains(TISSUE_PATTERN, case=False, na=False)
 meta["tissue"] = np.where(meta.is_sg, "salivary gland", "other embryonic cells")
 print("\nCells per group:")

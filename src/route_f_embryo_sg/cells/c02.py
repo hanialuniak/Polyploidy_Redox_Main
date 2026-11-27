@@ -50,7 +50,11 @@ need = [k for k in ("mtx", "mtx_rows", "mtx_cols") if not any(n.endswith("." + k
 if need or not any(n.startswith("ExpDesign") or "cell_metadata" in n or "sdrf" in n for n in got):
     raise StopHere(f"Missing {need or 'the cell annotation table'}. Check your folder {GDIR} and run again.")
 MTX = next(p for n, p in got.items() if n.endswith(".mtx"))
-ROWS = next(p for n, p in got.items() if n.endswith(".mtx_rows"))
+# EBI ships a "decorated" rows file carrying gene symbols alongside the plain one of FlyBase ids.
+# It is authoritative for THIS matrix, so prefer it over converting ids through a GTF of another release.
+ROWS = next(p for n, p in got.items() if n.endswith(".mtx_rows") and "decorated" not in n)
+DEC = next((p for n, p in got.items() if n.endswith(".mtx_rows") and "decorated" in n), None)
+print("Gene symbols from:", "the decorated rows file" if DEC else "the GTF in Cell 1")
 COLS = next(p for n, p in got.items() if n.endswith(".mtx_cols"))
 META = next(p for n, p in got.items() if n.startswith("ExpDesign") or "cell_metadata" in n or "sdrf" in n)
 print("\nUsing matrix:", os.path.basename(MTX), "| annotations:", os.path.basename(META))

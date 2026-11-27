@@ -1,15 +1,18 @@
 #@title Cell 5 - Gene symbols, the two contrasts, and the positive control
-if not os.path.exists(GTF_PATH):
+if DEC:
+    print("Symbols came from the decorated rows file, so no GTF conversion is needed.")
+elif not os.path.exists(GTF_PATH):
     raise StopHere(f"Gene annotation not found at {GTF_PATH}. It is the same file Route B and Route D use; "
                    "fix GTF_PATH in Cell 1.")
 id2sym = {}
-with gzip.open(GTF_PATH, "rt") as h:
-    for line in h:
-        if "\tgene\t" not in line:
-            continue
-        gid = re.search(r'gene_id "([^"]+)"', line); gnm = re.search(r'gene_name "([^"]+)"', line)
-        if gid and gnm:
-            id2sym[gid.group(1)] = gnm.group(1)
+if not DEC:
+    with gzip.open(GTF_PATH, "rt") as h:
+        for line in h:
+            if "\tgene\t" not in line:
+                continue
+            gid = re.search(r'gene_id "([^"]+)"', line); gnm = re.search(r'gene_name "([^"]+)"', line)
+            if gid and gnm:
+                id2sym[gid.group(1)] = gnm.group(1)
 L.index = [id2sym.get(re.sub(r"\.\d+$", "", i), i) for i in L.index]
 L = L.groupby(level=0).sum()
 print(f"Genes after converting to symbols: {len(L):,}")
@@ -54,6 +57,16 @@ CONTROLS = {
 print("\n=== Positive control: does the gland build its secretory machinery across these windows? ===")
 for name, gs in CONTROLS.items():
     g = [r for x in gs.split() if (r := resolve(x, PRESENT))]
+    lost = [x for x in gs.split() if not resolve(x, PRESENT)]
+    if lost:
+        # say WHY each one is missing, so a failed control can be diagnosed
+        filtered = [x for x in lost if resolve(x, ALL_GENES)]
+        absent = [x for x in lost if x not in filtered]
+        if filtered:
+            print(f"   {name.split(' - ')[0]}: removed by the gene filter -> {', '.join(filtered)} "
+                  f"(lower MIN_COUNTS_PER_GROUP in Cell 1 to keep them)")
+        if absent:
+            print(f"   {name.split(' - ')[0]}: not in this matrix at all -> {', '.join(absent)}")
     if len(g) < 3:
         print(f"{name}: only {len(g)} genes found, skipped"); continue
     print(f"\n{name}  ({len(g)} genes: {', '.join(g)})")

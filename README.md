@@ -71,6 +71,24 @@ development:
   and hits large fragile cells hardest. Groups are matched on a stress score before comparison.
 - **Composition**: yolk and chorion genes dominate late follicle cell libraries, so
   normalisation is median-of-ratios rather than simple scaling.
+- **Differentiation**: in every tissue available, cells change identity as they become
+  polyploid, so a change that looks like it tracks ploidy may track the new identity instead.
+  Handled by the germline control in the ovary (Cell 10): nurse cells make the same
+  mitotic-to-endocycle switch in the same egg chambers without becoming secretory, so a change
+  present only in follicle cells is differentiation. This control removed every redox lead the
+  project had.
+- **Ambient mRNA**: transcripts from lysed cells are captured alongside every cell, so a gene a
+  neighbouring cell type produces in quantity appears in droplets that never expressed it. Caught
+  by requiring a gene to be detected in the lineage it is claimed to change in, with eggshell
+  genes used as a built-in test that the check works (Cell 12).
+- **Two splits agreeing by chance**: a gene can move on both sides of two comparisons because
+  both separate "more mitotic" from "less mitotic" cells. Calibrated by shuffling the germline
+  labels within library and recomputing (Cell 13); about a third of the apparent agreement is
+  reproduced by shuffled labels.
+- **Themes read out of a ranked list**: a category spotted by eye in sorted output will test as
+  enriched even when it is meaningless, because its members were chosen from the hits. Handled by
+  splitting each category into the genes that suggested it and a held-out remainder, and scoring
+  only the remainder (Cells 14–15).
 
 ## Testing
 

@@ -48,16 +48,37 @@ if missing:
     print("Not detected in this dataset:", ", ".join(missing))
 
 pct = fc.rank(pct=True)
+# A gene can read "flat" for three different reasons, and they are not interchangeable:
+#   it really does not change; it is already near the top of the expression range and cannot rise
+#   much further; or it is barely detected and the estimate is noise pulled toward the middle.
+# Report expression level and detection rate so the three can be told apart.
+expr_pct = level.rank(pct=True)
+_mit = np.flatnonzero(((cells.role == MIT) & cells.low_stress).to_numpy())
+_end = np.flatnonzero(((cells.role == ENDO) & cells.low_stress).to_numpy())
+_all = sorted({g for gs in resolved.values() for g in gs})
+_idx = [gpos[g] for g in _all]
+_dm = np.asarray((X[_mit][:, _idx] > 0).mean(axis=0)).ravel()
+_de = np.asarray((X[_end][:, _idx] > 0).mean(axis=0)).ravel()
+detect = {g: (float(a), float(b)) for g, a, b in zip(_all, _dm, _de)}
+
 rows = []
 for (comp, role), gs in resolved.items():
     for g in gs:
+        dm, de = detect[g]
         r = {"gene": g, "compartment": comp, "role": role,
-             "log2_change": float(fc.loc[g]), "pct_of_all_genes": float(pct.loc[g]) * 100}
+             "log2_change": float(fc.loc[g]), "pct_of_all_genes": float(pct.loc[g]) * 100,
+             "expression_pct": float(expr_pct.loc[g]) * 100,
+             "detected_mitotic_%": round(100 * dm, 1), "detected_endocycling_%": round(100 * de, 1),
+             "verdict": ("too sparse to judge" if max(dm, de) < 0.10 else
+                         "at ceiling" if expr_pct.loc[g] > 0.95 and abs(fc.loc[g]) < 0.3 else
+                         "measurable")}
         for l, d in per_lib.items():
             r[f"lib_{l[:14]}"] = float(d.loc[g])
         rows.append(r)
 gene_tab = pd.DataFrame(rows).set_index("gene")
 print("\nEvery redox gene by where it works. Negative = lower in endocycling cells.")
+print("'too sparse to judge' means under 10% of cells detect it in both groups, so a flat value there is "
+      "an absence of measurement, not an absence of change.")
 display(gene_tab.sort_values(["compartment", "role", "log2_change"]).round(2))
 
 # Per compartment and role: does the group move more than random genes matched on expression?
